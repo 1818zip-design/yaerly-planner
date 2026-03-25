@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react'
-import { supabase, getToday } from '../lib/supabase'
+import { supabase, getToday, formatDateTW } from '../lib/supabase'
 import type { HabitDefinition, HabitLog } from '../types'
-import { Plus, Trash2, CheckCircle, Circle } from 'lucide-react'
-
-const TODAY = getToday()
+import { Plus, Trash2, CheckCircle, Circle, ChevronLeft, ChevronRight } from 'lucide-react'
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate()
@@ -17,16 +15,37 @@ function pad(n: number) {
   return String(n).padStart(2, '0')
 }
 
+function addDays(d: Date, n: number) {
+  const copy = new Date(d)
+  copy.setDate(copy.getDate() + n)
+  return copy
+}
+
+function displayDate(dateStr: string) {
+  const d = new Date(dateStr + 'T00:00:00')
+  const today = getToday()
+  const days = ['日', '一', '二', '三', '四', '五', '六']
+  if (dateStr === today) return `今天 · ${d.getMonth() + 1}/${d.getDate()} (週${days[d.getDay()]})`
+  return `${d.getMonth() + 1}/${d.getDate()} (週${days[d.getDay()]})`
+}
+
 const HABIT_COLORS = ['#5C7A6B', '#8B9EC7', '#C4956A', '#B07AA1', '#7BA3A3', '#A1887F', '#82A47D', '#C78B8B']
 
 export default function Habits() {
-  const [year] = useState(() => parseInt(TODAY.slice(0, 4)))
-  const [month] = useState(() => parseInt(TODAY.slice(5, 7)) - 1)
+  const today = getToday()
+  const [selectedDate, setSelectedDate] = useState(today)
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }))
+    return new Date(now.getFullYear(), now.getMonth(), 1)
+  })
   const [definitions, setDefinitions] = useState<HabitDefinition[]>([])
   const [logs, setLogs] = useState<HabitLog[]>([])
   const [loading, setLoading] = useState(true)
   const [newHabitName, setNewHabitName] = useState('')
   const [activeHabitId, setActiveHabitId] = useState<string | null>(null)
+
+  const year = currentMonth.getFullYear()
+  const month = currentMonth.getMonth()
 
   useEffect(() => {
     fetchAll()
@@ -74,38 +93,35 @@ export default function Habits() {
     }
   }
 
-  async function toggleHabitLog(habitId: string) {
-    const existing = logs.find(l => l.habit_id === habitId && l.date === TODAY)
+  async function toggleHabitLog(habitId: string, date: string) {
+    const existing = logs.find(l => l.habit_id === habitId && l.date === date)
     if (existing) {
       if (existing.completed) {
-        // Uncheck: delete the log
         await supabase.from('habit_logs').delete().eq('id', existing.id)
         setLogs(prev => prev.filter(l => l.id !== existing.id))
       } else {
-        // Mark complete
         const { data } = await supabase
           .from('habit_logs').update({ completed: true }).eq('id', existing.id).select().single()
         if (data) setLogs(prev => prev.map(l => l.id === data.id ? data : l))
       }
     } else {
-      // Create new log
       const { data } = await supabase
         .from('habit_logs')
-        .insert({ date: TODAY, habit_id: habitId, completed: true, note: '' })
+        .insert({ date, habit_id: habitId, completed: true, note: '' })
         .select().single()
       if (data) setLogs(prev => [...prev, data])
     }
   }
 
-  function isCompletedToday(habitId: string) {
-    return logs.some(l => l.habit_id === habitId && l.date === TODAY && l.completed)
+  function isCompleted(habitId: string, date: string) {
+    return logs.some(l => l.habit_id === habitId && l.date === date && l.completed)
   }
 
   function calcStreak(habitId: string) {
     let streak = 0
-    const d = new Date(TODAY + 'T00:00:00')
+    const d = new Date(today + 'T00:00:00')
     while (true) {
-      const dateStr = d.toISOString().slice(0, 10)
+      const dateStr = formatDateTW(d)
       const log = logs.find(l => l.habit_id === habitId && l.date === dateStr && l.completed)
       if (log) {
         streak++
@@ -119,9 +135,9 @@ export default function Habits() {
 
   function calcMonthlyRate(habitId: string) {
     const daysInMonth = getDaysInMonth(year, month)
-    const today = new Date()
-    const daysPassed = today.getMonth() === month && today.getFullYear() === year
-      ? today.getDate()
+    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }))
+    const daysPassed = now.getMonth() === month && now.getFullYear() === year
+      ? now.getDate()
       : daysInMonth
     const done = logs.filter(l => l.habit_id === habitId && l.completed).length
     return daysPassed > 0 ? Math.round((done / daysPassed) * 100) : 0
@@ -129,6 +145,30 @@ export default function Habits() {
 
   function getColor(index: number) {
     return HABIT_COLORS[index % HABIT_COLORS.length]
+  }
+
+  function prevDay() {
+    const d = addDays(new Date(selectedDate + 'T00:00:00'), -1)
+    const ds = formatDateTW(d)
+    setSelectedDate(ds)
+    // Switch month if needed
+    if (d.getMonth() !== month || d.getFullYear() !== year) {
+      setCurrentMonth(new Date(d.getFullYear(), d.getMonth(), 1))
+    }
+  }
+
+  function nextDay() {
+    const d = addDays(new Date(selectedDate + 'T00:00:00'), 1)
+    const ds = formatDateTW(d)
+    setSelectedDate(ds)
+    if (d.getMonth() !== month || d.getFullYear() !== year) {
+      setCurrentMonth(new Date(d.getFullYear(), d.getMonth(), 1))
+    }
+  }
+
+  function selectCalendarDay(day: number) {
+    const ds = `${year}-${pad(month + 1)}-${pad(day)}`
+    setSelectedDate(ds)
   }
 
   // Calendar heatmap
@@ -155,7 +195,7 @@ export default function Habits() {
 
   return (
     <div style={{ padding: '24px 16px', maxWidth: '480px', margin: '0 auto' }}>
-      <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#1C1C1E', margin: '0 0 24px' }}>
+      <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#1C1C1E', margin: '0 0 20px' }}>
         習慣追蹤
       </h1>
 
@@ -193,12 +233,42 @@ export default function Habits() {
         </div>
       ) : (
         <>
-          {/* Today's habits */}
+          {/* Date navigation */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+            <button onClick={prevDay} style={{ background: 'none', border: 'none', color: '#8B9EC7', cursor: 'pointer', padding: '4px' }}>
+              <ChevronLeft size={20} />
+            </button>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '15px', fontWeight: '600', color: '#1C1C1E' }}>
+                {displayDate(selectedDate)}
+              </div>
+              {selectedDate !== today && (
+                <button
+                  onClick={() => setSelectedDate(today)}
+                  style={{ background: 'none', border: 'none', color: '#8B9EC7', fontSize: '11px', cursor: 'pointer', padding: '2px 0' }}
+                >
+                  回到今天
+                </button>
+              )}
+            </div>
+            <button
+              onClick={nextDay}
+              disabled={selectedDate >= today}
+              style={{
+                background: 'none', border: 'none',
+                color: selectedDate >= today ? '#AEAEB2' : '#8B9EC7',
+                cursor: selectedDate >= today ? 'not-allowed' : 'pointer', padding: '4px',
+              }}
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+
+          {/* Habit check-in for selected date */}
           <div style={{ marginBottom: '28px' }}>
-            <p style={{ fontSize: '12px', color: '#6C6C70', margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>今日打卡</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {definitions.map((def) => {
-                const done = isCompletedToday(def.id)
+                const done = isCompleted(def.id, selectedDate)
                 return (
                   <div
                     key={def.id}
@@ -210,7 +280,7 @@ export default function Habits() {
                     }}
                   >
                     <button
-                      onClick={() => toggleHabitLog(def.id)}
+                      onClick={() => toggleHabitLog(def.id, selectedDate)}
                       style={{
                         background: 'none', border: 'none', cursor: 'pointer',
                         padding: 0, display: 'flex', flexShrink: 0,
@@ -274,25 +344,40 @@ export default function Habits() {
 
           {/* Heatmap Calendar */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <p style={{ fontSize: '12px', color: '#6C6C70', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>月曆熱圖</p>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {definitions.map((def) => (
-                  <button
-                    key={def.id}
-                    onClick={() => setActiveHabitId(def.id)}
-                    style={{
-                      padding: '4px 10px', borderRadius: '20px',
-                      border: 'none',
-                      backgroundColor: activeHabitId === def.id ? '#8B9EC7' : 'rgba(118,118,128,0.12)',
-                      color: activeHabitId === def.id ? '#FFFFFF' : '#6C6C70',
-                      fontSize: '11px', cursor: 'pointer', fontWeight: activeHabitId === def.id ? '600' : '400',
-                    }}
-                  >
-                    {def.name.length > 4 ? def.name.slice(0, 4) + '…' : def.name}
-                  </button>
-                ))}
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <button
+                onClick={() => setCurrentMonth(new Date(year, month - 1, 1))}
+                style={{ background: 'none', border: 'none', color: '#AEAEB2', cursor: 'pointer', padding: '4px' }}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <p style={{ fontSize: '12px', color: '#6C6C70', margin: 0, fontWeight: '600' }}>
+                {year} 年 {month + 1} 月
+              </p>
+              <button
+                onClick={() => setCurrentMonth(new Date(year, month + 1, 1))}
+                style={{ background: 'none', border: 'none', color: '#AEAEB2', cursor: 'pointer', padding: '4px' }}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
+              {definitions.map((def) => (
+                <button
+                  key={def.id}
+                  onClick={() => setActiveHabitId(def.id)}
+                  style={{
+                    padding: '4px 10px', borderRadius: '20px',
+                    border: 'none',
+                    backgroundColor: activeHabitId === def.id ? '#8B9EC7' : 'rgba(118,118,128,0.12)',
+                    color: activeHabitId === def.id ? '#FFFFFF' : '#6C6C70',
+                    fontSize: '11px', cursor: 'pointer', fontWeight: activeHabitId === def.id ? '600' : '400',
+                  }}
+                >
+                  {def.name.length > 4 ? def.name.slice(0, 4) + '…' : def.name}
+                </button>
+              ))}
             </div>
 
             <div style={{
@@ -311,21 +396,24 @@ export default function Habits() {
                   const done = activeHabitId
                     ? logs.some(l => l.habit_id === activeHabitId && l.date === dateStr && l.completed)
                     : false
-                  const isToday = dateStr === TODAY
+                  const isToday = dateStr === today
+                  const isSelected = dateStr === selectedDate
                   return (
-                    <div
+                    <button
                       key={day}
+                      onClick={() => selectCalendarDay(day)}
                       style={{
                         aspectRatio: '1', borderRadius: '8px',
                         backgroundColor: done ? activeColor + '30' : '#F2F2F7',
-                        border: isToday ? `2px solid ${activeColor}` : '2px solid transparent',
+                        border: isSelected ? `2px solid #8B9EC7` : isToday ? `2px solid ${activeColor}` : '2px solid transparent',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: '11px', color: done ? activeColor : '#AEAEB2',
-                        fontWeight: isToday ? '700' : '400',
+                        fontWeight: isToday || isSelected ? '700' : '400',
+                        cursor: 'pointer', padding: 0,
                       }}
                     >
                       {day}
-                    </div>
+                    </button>
                   )
                 })}
               </div>
