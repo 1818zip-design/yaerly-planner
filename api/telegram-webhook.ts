@@ -243,6 +243,154 @@ async function deleteTaskById(id: string): Promise<boolean> {
   return res.ok
 }
 
+async function deleteTasksByFilter(date: string, titleMatch?: string): Promise<number> {
+  let query = `tasks?date=eq.${date}`
+  if (titleMatch) query += `&title=ilike.*${encodeURIComponent(titleMatch)}*`
+  const res = await fetch(supabaseUrl(query), {
+    method: 'DELETE',
+    headers: { ...supabaseHeaders(), Prefer: 'return=representation' },
+  })
+  if (!res.ok) return 0
+  const data = await res.json()
+  return Array.isArray(data) ? data.length : 0
+}
+
+// --- Supabase: expenses ---
+async function addExpense(date: string, title: string, amount: number, category: string, note: string): Promise<string> {
+  const body = { date, title, amount, category, note }
+  console.log('[addExpense] Inserting:', JSON.stringify(body))
+  const res = await fetch(supabaseUrl('expenses'), {
+    method: 'POST',
+    headers: supabaseHeaders(),
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    console.error('[addExpense] Failed:', res.status, await res.text())
+    return '寫入失敗'
+  }
+  const data = await res.json()
+  const row = Array.isArray(data) ? data[0] : data
+  console.log('[addExpense] Success:', row?.id)
+  return `已記帳「${title}」${amount} 元（${category}）到 ${date}`
+}
+
+// --- Supabase: habit_definitions + habit_logs ---
+async function fetchHabitDefinitions(): Promise<{ id: string; name: string }[]> {
+  const res = await fetch(supabaseUrl('habit_definitions?order=created_at'), { headers: supabaseHeaders() })
+  if (!res.ok) return []
+  return res.json()
+}
+
+async function addHabitLog(date: string, habitId: string, habitName: string): Promise<string> {
+  // upsert: if already logged today, update
+  const existing = await fetch(supabaseUrl(`habit_logs?date=eq.${date}&habit_id=eq.${habitId}`), { headers: supabaseHeaders() })
+  if (existing.ok) {
+    const rows = await existing.json()
+    if (Array.isArray(rows) && rows.length > 0) {
+      await fetch(supabaseUrl(`habit_logs?id=eq.${rows[0].id}`), {
+        method: 'PATCH',
+        headers: supabaseHeaders(),
+        body: JSON.stringify({ completed: true }),
+      })
+      return `「${habitName}」今天已打卡（更新）`
+    }
+  }
+  const res = await fetch(supabaseUrl('habit_logs'), {
+    method: 'POST',
+    headers: supabaseHeaders(),
+    body: JSON.stringify({ date, habit_id: habitId, completed: true, note: '' }),
+  })
+  if (!res.ok) {
+    console.error('[addHabitLog] Failed:', res.status, await res.text())
+    return '打卡失敗'
+  }
+  console.log('[addHabitLog] Success:', habitName, date)
+  return `「${habitName}」打卡完成（${date}）`
+}
+
+// --- Supabase: journal ---
+async function upsertJournal(date: string, content: string): Promise<string> {
+  const now = new Date().toISOString()
+  const existing = await fetch(supabaseUrl(`journal?date=eq.${date}`), { headers: supabaseHeaders() })
+  if (existing.ok) {
+    const rows = await existing.json()
+    if (Array.isArray(rows) && rows.length > 0) {
+      await fetch(supabaseUrl(`journal?id=eq.${rows[0].id}`), {
+        method: 'PATCH',
+        headers: supabaseHeaders(),
+        body: JSON.stringify({ content, updated_at: now }),
+      })
+      return `已更新 ${date} 的日記`
+    }
+  }
+  const res = await fetch(supabaseUrl('journal'), {
+    method: 'POST',
+    headers: supabaseHeaders(),
+    body: JSON.stringify({ date, content, updated_at: now }),
+  })
+  if (!res.ok) {
+    console.error('[upsertJournal] Failed:', res.status, await res.text())
+    return '日記寫入失敗'
+  }
+  return `已寫入 ${date} 的日記`
+}
+
+// --- Supabase: mood ---
+async function upsertMood(date: string, energy: number, tags: string[], note: string): Promise<string> {
+  const existing = await fetch(supabaseUrl(`mood?date=eq.${date}`), { headers: supabaseHeaders() })
+  if (existing.ok) {
+    const rows = await existing.json()
+    if (Array.isArray(rows) && rows.length > 0) {
+      await fetch(supabaseUrl(`mood?id=eq.${rows[0].id}`), {
+        method: 'PATCH',
+        headers: supabaseHeaders(),
+        body: JSON.stringify({ energy, tags, note }),
+      })
+      return `已更新 ${date} 的心情（能量 ${energy}）`
+    }
+  }
+  const res = await fetch(supabaseUrl('mood'), {
+    method: 'POST',
+    headers: supabaseHeaders(),
+    body: JSON.stringify({ date, energy, tags, note }),
+  })
+  if (!res.ok) {
+    console.error('[upsertMood] Failed:', res.status, await res.text())
+    return '心情記錄失敗'
+  }
+  return `已記錄 ${date} 的心情（能量 ${energy}）`
+}
+
+// --- Supabase: goals ---
+async function fetchGoals(): Promise<{ id: string; title: string; position: number; completed: boolean }[]> {
+  const res = await fetch(supabaseUrl('goals?order=position'), { headers: supabaseHeaders() })
+  if (!res.ok) return []
+  return res.json()
+}
+
+async function addGoal(title: string, position: number): Promise<string> {
+  const res = await fetch(supabaseUrl('goals'), {
+    method: 'POST',
+    headers: supabaseHeaders(),
+    body: JSON.stringify({ title, position, completed: false, category: '其他', connections: [] }),
+  })
+  if (!res.ok) {
+    console.error('[addGoal] Failed:', res.status, await res.text())
+    return '新增目標失敗'
+  }
+  return `已新增目標 #${position}「${title}」`
+}
+
+async function updateGoalCompleted(id: string, completed: boolean, title: string): Promise<string> {
+  const res = await fetch(supabaseUrl(`goals?id=eq.${id}`), {
+    method: 'PATCH',
+    headers: supabaseHeaders(),
+    body: JSON.stringify({ completed, completed_at: completed ? new Date().toISOString() : null }),
+  })
+  if (!res.ok) return '更新目標失敗'
+  return completed ? `目標「${title}」已完成 🎉` : `目標「${title}」標記為未完成`
+}
+
 // --- Format helpers ---
 function formatTaskList(tasks: Task[], date: string): string {
   if (tasks.length === 0) return `📭 ${date} 沒有任務`
@@ -292,61 +440,175 @@ const CLAUDE_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: 'add_calendar_event',
-    description: '新增一筆行程到 Google Calendar（有明確時間點的事項）。例如：開會、看醫生、搭車。用戶已給出明確時間時可以直接新增。',
+    description: '新增一筆行程到 Google Calendar（有明確時間點的事項）。例如：開會、看醫生、搭車。',
     input_schema: {
       type: 'object' as const,
       properties: {
         date: { type: 'string', description: '日期，格式 YYYY-MM-DD' },
         title: { type: 'string', description: '行程名稱' },
         start_time: { type: 'string', description: '開始時間，格式 HH:mm（24小時制）' },
-        end_time: { type: 'string', description: '結束時間，格式 HH:mm（選填，預設為開始時間 +1 小時）' },
+        end_time: { type: 'string', description: '結束時間，格式 HH:mm（選填，預設 +1 小時）' },
         location: { type: 'string', description: '地點（選填）' },
       },
       required: ['date', 'title', 'start_time'],
     },
   },
+  {
+    name: 'add_expense',
+    description: '記帳。記錄一筆消費到 expenses 表。類別：餐飲/交通/治裝購物/學習/朋友社交/約會/日常採買/其他。',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        date: { type: 'string', description: '日期，格式 YYYY-MM-DD' },
+        title: { type: 'string', description: '消費項目' },
+        amount: { type: 'number', description: '金額（數字）' },
+        category: { type: 'string', description: '類別：餐飲/交通/治裝購物/學習/朋友社交/約會/日常採買/其他' },
+        note: { type: 'string', description: '備註（選填）' },
+      },
+      required: ['date', 'title', 'amount', 'category'],
+    },
+  },
+  {
+    name: 'get_habit_definitions',
+    description: '取得所有習慣定義列表（habit_definitions），用來查找 habit_id。打卡前先呼叫此工具。',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'add_habit_log',
+    description: '習慣打卡。記錄今天完成了某個習慣。需要先呼叫 get_habit_definitions 取得 habit_id。',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        date: { type: 'string', description: '日期，格式 YYYY-MM-DD' },
+        habit_id: { type: 'string', description: '習慣定義的 UUID（從 get_habit_definitions 取得）' },
+        habit_name: { type: 'string', description: '習慣名稱（用於回覆）' },
+      },
+      required: ['date', 'habit_id', 'habit_name'],
+    },
+  },
+  {
+    name: 'add_journal',
+    description: '寫日記。寫入或更新當天的日記內容到 journal 表。',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        date: { type: 'string', description: '日期，格式 YYYY-MM-DD' },
+        content: { type: 'string', description: '日記內容' },
+      },
+      required: ['date', 'content'],
+    },
+  },
+  {
+    name: 'add_mood',
+    description: '記錄心情。寫入或更新當天的心情到 mood 表。energy 1-5 分，tags 可選：平靜/興奮/疲憊/焦慮/快樂。',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        date: { type: 'string', description: '日期，格式 YYYY-MM-DD' },
+        energy: { type: 'number', description: '能量分數 1-5' },
+        tags: { type: 'array', items: { type: 'string' }, description: '心情標籤：平靜/興奮/疲憊/焦慮/快樂' },
+        note: { type: 'string', description: '心情備註（選填）' },
+      },
+      required: ['date', 'energy'],
+    },
+  },
+  {
+    name: 'get_goals',
+    description: '取得所有年度目標列表。',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'add_goal',
+    description: '新增一個年度目標到 goals 表。',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        title: { type: 'string', description: '目標名稱' },
+        position: { type: 'number', description: '目標編號（1-20）' },
+      },
+      required: ['title', 'position'],
+    },
+  },
+  {
+    name: 'complete_goal',
+    description: '標記某個年度目標為已完成或未完成。',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        goal_id: { type: 'string', description: '目標 UUID' },
+        goal_title: { type: 'string', description: '目標名稱（用於回覆）' },
+        completed: { type: 'boolean', description: 'true=完成, false=未完成' },
+      },
+      required: ['goal_id', 'goal_title', 'completed'],
+    },
+  },
+  {
+    name: 'delete_tasks',
+    description: '刪除任務。可以刪除某天的所有任務，或按名稱刪除特定任務。',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        date: { type: 'string', description: '日期，格式 YYYY-MM-DD' },
+        title_match: { type: 'string', description: '任務名稱關鍵字（選填，不填則刪除當天所有任務）' },
+      },
+      required: ['date'],
+    },
+  },
 ]
 
-const SYSTEM_PROMPT = `你是任務助理 bot。回覆用繁體中文，語氣簡潔像朋友。今天是 ${getTodayTaipei()}。
+const SYSTEM_PROMPT = `你是個人助理 bot。回覆用繁體中文，語氣簡潔像朋友。今天是 ${getTodayTaipei()}。
 
-嚴格規則（必須遵守，沒有例外）：
+核心規則：
+- 回覆最多 2 句話，不說廢話、不給建議、不解釋、不問多餘的問題
+- 不需要問確認，直接做完告訴用戶結果
+- 一定要呼叫 tool，絕對不可以只回文字說「已新增」而不呼叫 tool
+- 多個項目要分開呼叫，每個一次
+- 禁止用 markdown 格式，這是 Telegram 訊息
 
-規則 1：分辨「行程」vs「任務」
-- 有具體時間（幾點）→ 呼叫 add_calendar_event
-- 沒有具體時間 → 呼叫 add_task
+分流規則（根據用戶意圖選擇正確的 tool）：
 
-規則 2：有指定日期 → 直接呼叫 tool 寫入，不用問確認
-- 「明天買牛奶」→ 立刻呼叫 add_task(date=明天, title=買牛奶)
-- 「週五寄包裹」→ 立刻呼叫 add_task(date=週五, title=寄包裹)
-- 「明天下午3點開會」→ 立刻呼叫 add_calendar_event(date=明天, title=開會, start_time=15:00)
+1. 待辦任務（沒有具體時間的事）→ add_task
+   例：「買牛奶」「明天寄包裹」「這週訂高鐵票」
+   有日期 → 直接寫入。沒日期 → 先 get_week_tasks 找最空的一天再寫入
 
-規則 3：沒指定日期 → 先查行程，直接安排到最空的一天，不用問確認
-- 「買牛奶」→ 先呼叫 get_week_tasks 查看這週行程
-- 看哪天任務最少，直接呼叫 add_task 寫入那天
-- 回覆：「幫你排在週四了，有需要調整再說」
+2. 行程（有具體時間）→ add_calendar_event
+   例：「明天下午3點開會」「週五10點看牙醫」
 
-規則 4：一定要呼叫 tool
-- 絕對不可以只回文字說「已新增」而不呼叫 tool
-- 如果你沒呼叫 tool，任務就不會真的存進資料庫
+3. 記帳（花錢/消費）→ add_expense
+   例：「午餐花了180」「記帳 交通 250」「咖啡 65」
+   自動判斷類別：餐飲/交通/治裝購物/學習/朋友社交/約會/日常採買/其他
+   沒說日期就用今天
 
-規則 5：多個任務要分開呼叫
-- 「買牛奶和寄包裹」→ 呼叫 add_task 兩次，每個任務一次
-- 不要把多個任務合併成一筆
+4. 習慣打卡 → 先 get_habit_definitions 查 id，再 add_habit_log
+   例：「今天運動打卡」「學英文完成」「韓文打卡」
+   沒說日期就用今天
 
-規則 6：查詢任務
-- 「今天有什麼事」→ 呼叫 get_tasks
-- 「這週行程」→ 呼叫 get_week_tasks
+5. 日記 → add_journal
+   例：「今天日記：今天很充實...」「日記：去了海邊」
+   沒說日期就用今天
 
-回覆風格：
-- 回覆最多 2 句話，不說廢話
-- 不給建議、不解釋、不說購物技巧、不問多餘的問題
-- 不需要問確認，直接安排完告訴用戶結果
-- 語氣範例：「幫你排在週四了，有需要調整再說」
+6. 心情記錄 → add_mood
+   例：「今天心情4分」「心情：平靜」「能量3，有點焦慮」
+   energy 1-5 分，tags 可選：平靜/興奮/疲憊/焦慮/快樂
+   沒說日期就用今天
 
-禁止事項：
-- 禁止在回覆中列出任務清單而不呼叫 tool
-- 禁止說「已幫你新增」但沒有真的呼叫 add_task 或 add_calendar_event
-- 禁止用 markdown 格式（不要 **粗體** 或 # 標題），這是 Telegram 訊息`
+7. 年度目標 → get_goals / add_goal / complete_goal
+   例：「新增目標：爬三座山」→ 先 get_goals 看下一個 position，再 add_goal
+   例：「完成目標2」→ 先 get_goals 找到 position=2 的目標，再 complete_goal
+
+8. 刪除任務 → delete_tasks
+   例：「刪除今天所有任務」「刪掉買牛奶」
+
+9. 查詢 → get_tasks / get_week_tasks / get_goals / get_habit_definitions
+   例：「今天有什麼事」「這週行程」「我的目標」`
 
 // --- Execute a tool call ---
 async function executeTool(name: string, input: Record<string, string>): Promise<string> {
@@ -399,6 +661,50 @@ async function executeTool(name: string, input: Record<string, string>): Promise
         location: input.location,
       })
       return result
+    }
+    case 'add_expense': {
+      const typedInput = input as Record<string, unknown>
+      return addExpense(
+        input.date,
+        input.title,
+        Number(typedInput.amount),
+        input.category || '其他',
+        input.note || '',
+      )
+    }
+    case 'get_habit_definitions': {
+      const habits = await fetchHabitDefinitions()
+      if (habits.length === 0) return '目前沒有定義任何習慣。'
+      return habits.map(h => `${h.id}: ${h.name}`).join('\n')
+    }
+    case 'add_habit_log': {
+      return addHabitLog(input.date, input.habit_id, input.habit_name)
+    }
+    case 'add_journal': {
+      return upsertJournal(input.date, input.content)
+    }
+    case 'add_mood': {
+      const typedInput = input as Record<string, unknown>
+      const tags = Array.isArray(typedInput.tags) ? typedInput.tags as string[] : []
+      return upsertMood(input.date, Number(typedInput.energy), tags, input.note || '')
+    }
+    case 'get_goals': {
+      const goals = await fetchGoals()
+      if (goals.length === 0) return '目前沒有任何年度目標。'
+      return goals.map(g => `#${g.position} ${g.title}${g.completed ? ' ✅' : ''} (id: ${g.id})`).join('\n')
+    }
+    case 'add_goal': {
+      const typedInput = input as Record<string, unknown>
+      return addGoal(input.title, Number(typedInput.position))
+    }
+    case 'complete_goal': {
+      const typedInput = input as Record<string, unknown>
+      return updateGoalCompleted(input.goal_id, Boolean(typedInput.completed), input.goal_title)
+    }
+    case 'delete_tasks': {
+      const count = await deleteTasksByFilter(input.date, input.title_match)
+      if (count === 0) return input.title_match ? `找不到包含「${input.title_match}」的任務` : `${input.date} 沒有任務可刪除`
+      return `已刪除 ${count} 筆任務`
     }
     default:
       return `未知工具：${name}`
