@@ -888,6 +888,18 @@ async function handleDirectCommand(chatId: number, text: string): Promise<string
     return `幫你記了 ${parseInt(month)}/${parseInt(day)} 刷卡 ${formatted} 元，分類先設為其他，要改再告訴我`
   }
 
+  // --- Apple Pay notification parsing ---
+  // Format: "永豐銀行\n商家名稱\n$XXX.00"
+  const applePayMatch = trimmed.match(/永豐銀行\n(.+)\n\$([\d,.]+)/)
+  if (applePayMatch) {
+    const merchant = applePayMatch[1].trim()
+    const amount = Math.round(parseFloat(applePayMatch[2].replace(/,/g, '')))
+    const date = getTodayTaipei()
+    const result = await addExpense(date, merchant, amount, '其他', '')
+    if (result.startsWith('寫入失敗')) return `❌ ${result}`
+    return `記了 ${merchant} $${amount.toLocaleString()}，分類先設其他，要改再說`
+  }
+
   // Not a command → return null to signal AI handling
   return null
 }
