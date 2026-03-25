@@ -46,9 +46,10 @@ function EditModal({ goal, allGoals, relatedTasks, onSave, onClose }: EditModalP
   return (
     <div
       style={{
-        position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.4)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 100, padding: '16px',
+        zIndex: 9999, padding: '16px',
       }}
       onClick={onClose}
     >
@@ -57,6 +58,7 @@ function EditModal({ goal, allGoals, relatedTasks, onSave, onClose }: EditModalP
           backgroundColor: '#ffffff', borderRadius: '20px', padding: '24px',
           width: '100%', maxWidth: '400px', border: '1px solid #e5e5e5',
           maxHeight: '85dvh', overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
           boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
         }}
         onClick={e => e.stopPropagation()}

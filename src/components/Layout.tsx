@@ -15,7 +15,9 @@ export default function Layout() {
         style={{
           flex: 1,
           overflowY: 'auto',
-          paddingBottom: '80px',
+          paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+          maxWidth: '100vw',
+          overflowX: 'hidden',
         }}
       >
         <Outlet />

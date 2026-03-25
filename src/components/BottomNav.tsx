@@ -18,7 +18,8 @@ export default function BottomNav() {
       position: 'fixed', bottom: 0, left: 0, right: 0,
       background: '#ffffff', borderTop: '1px solid #e5e5e5',
       display: 'flex', justifyContent: 'space-around',
-      padding: '8px 0', zIndex: 100
+      padding: '8px 0', paddingBottom: 'calc(8px + env(safe-area-inset-bottom, 0px))',
+      zIndex: 100,
     }}>
       {navItems.map((item) => {
         const isActive = location.pathname === item.path;

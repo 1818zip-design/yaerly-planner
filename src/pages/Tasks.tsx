@@ -61,12 +61,15 @@ function AddTaskModal({ date, goals, onAdd, onClose }: AddTaskModalProps) {
     <div
       style={{
         position: 'fixed',
-        inset: 0,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         backgroundColor: 'rgba(0,0,0,0.4)',
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'center',
-        zIndex: 100,
+        zIndex: 9999,
       }}
       onClick={onClose}
     >
@@ -75,12 +78,14 @@ function AddTaskModal({ date, goals, onAdd, onClose }: AddTaskModalProps) {
           backgroundColor: '#ffffff',
           borderRadius: '20px 20px 0 0',
           padding: '24px 20px',
+          paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
           width: '100%',
           maxWidth: '480px',
           border: '1px solid #e5e5e5',
           borderBottom: 'none',
           maxHeight: '85dvh',
           overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
           boxShadow: '0 -10px 40px rgba(0,0,0,0.1)',
         }}
         onClick={e => e.stopPropagation()}
