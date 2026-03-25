@@ -1,4 +1,12 @@
 {
+  "functions": {
+    "api/telegram-webhook.ts": {
+      "maxDuration": 60
+    },
+    "api/daily-reminder.ts": {
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],
