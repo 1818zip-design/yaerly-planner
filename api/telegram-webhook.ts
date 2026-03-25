@@ -16,7 +16,9 @@
  * Setup:
  *   1. Deploy to Vercel
  *   2. Set env vars: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, ANTHROPIC_API_KEY,
- *      VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+ *      VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY,
+ *      GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN,
+ *      GOOGLE_CALENDAR_ID (optional, defaults to 'primary')
  *   3. Register webhook:
  *      curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://<domain>/api/telegram-webhook"
  */
@@ -99,6 +101,88 @@ async function sendTelegram(chatId: number, text: string): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, text: truncated, parse_mode: 'HTML' }),
   })
+}
+
+// --- Google Calendar operations ---
+async function getGoogleAccessToken(): Promise<string | null> {
+  const clientId = env('GOOGLE_CLIENT_ID')
+  const clientSecret = env('GOOGLE_CLIENT_SECRET')
+  const refreshToken = env('GOOGLE_REFRESH_TOKEN')
+  if (!clientId || !clientSecret || !refreshToken) return null
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  })
+  if (!res.ok) {
+    console.error('[Google OAuth] Token refresh failed:', await res.text())
+    return null
+  }
+  const data = await res.json() as { access_token: string }
+  return data.access_token
+}
+
+interface CalendarEventInput {
+  title: string
+  date: string        // YYYY-MM-DD
+  start_time: string  // HH:mm
+  end_time?: string   // HH:mm (optional, defaults to start_time + 1hr)
+  location?: string
+}
+
+async function createCalendarEvent(input: CalendarEventInput): Promise<string> {
+  const accessToken = await getGoogleAccessToken()
+  if (!accessToken) return '❌ Google Calendar 未設定（缺少 OAuth 憑證）'
+
+  const calendarId = env('GOOGLE_CALENDAR_ID') || 'primary'
+  const { title, date, start_time, location } = input
+
+  // Calculate end time (default +1hr)
+  let endTime = input.end_time
+  if (!endTime) {
+    const [h, m] = start_time.split(':').map(Number)
+    endTime = `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  }
+
+  const event = {
+    summary: title,
+    start: {
+      dateTime: `${date}T${start_time}:00`,
+      timeZone: 'Asia/Taipei',
+    },
+    end: {
+      dateTime: `${date}T${endTime}:00`,
+      timeZone: 'Asia/Taipei',
+    },
+    ...(location ? { location } : {}),
+  }
+
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(event),
+    },
+  )
+
+  if (!res.ok) {
+    const errText = await res.text()
+    console.error('[Google Calendar] Create event failed:', errText)
+    return `❌ 新增行程失敗：${errText.slice(0, 100)}`
+  }
+
+  const created = await res.json() as { htmlLink: string }
+  return `已新增行程「${title}」到 Google Calendar（${date} ${start_time}~${endTime}）\n${created.htmlLink}`
 }
 
 // --- Supabase task operations ---
@@ -187,7 +271,7 @@ const CLAUDE_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: 'add_task',
-    description: '新增一筆任務到指定日期。只有在用戶明確確認後才呼叫。',
+    description: '新增一筆待辦任務到 Supabase（沒有明確時間點的事項）。例如：買東西、完成報告、訂票。只有在用戶明確確認後才呼叫。',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -197,13 +281,44 @@ const CLAUDE_TOOLS: Anthropic.Tool[] = [
       required: ['date', 'title'],
     },
   },
+  {
+    name: 'add_calendar_event',
+    description: '新增一筆行程到 Google Calendar（有明確時間點的事項）。例如：開會、看醫生、搭車。只有在用戶明確確認後才呼叫。',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        date: { type: 'string', description: '日期，格式 YYYY-MM-DD' },
+        title: { type: 'string', description: '行程名稱' },
+        start_time: { type: 'string', description: '開始時間，格式 HH:mm（24小時制）' },
+        end_time: { type: 'string', description: '結束時間，格式 HH:mm（選填，預設為開始時間 +1 小時）' },
+        location: { type: 'string', description: '地點（選填）' },
+      },
+      required: ['date', 'title', 'start_time'],
+    },
+  },
 ]
 
 const SYSTEM_PROMPT = `你是用戶的貼心行程助理，說話簡潔自然，不說多餘的鼓勵語。
 你可以讀取用戶的任務資料來回答問題和安排行程。
 回覆用繁體中文，語氣像朋友。
-當用戶要安排某件事時，先查看未來幾天的任務數量，選最空的一天，
-告訴用戶你的建議並說明原因，等用戶確認後才新增。
+
+當用戶要安排某件事時，你必須先判斷這是「行程」還是「任務」：
+
+📅 行程（有明確時間點）→ 用 add_calendar_event 加到 Google Calendar
+  判斷條件：用戶提到了具體時間（幾點、上午/下午幾點、早上9點等）
+  例如：「明天下午3點開會」「週五10點看牙醫」「4月8日下午2點搭高鐵回台中」
+  回覆時要說明：「這是行程，我幫你加到 Google Calendar」
+
+✅ 任務（待辦事項）→ 用 add_task 加到待辦清單
+  判斷條件：只有日期或「這週」「明天」但沒有具體時間
+  例如：「買咖啡機膠囊」「完成履歷」「訂高鐵票」「明天要寄包裹」
+  回覆時要說明：「這是待辦事項，我幫你加到待辦清單」
+
+⚠️ 不確定時 → 預設加到待辦清單（add_task），並告訴用戶：
+  「我先幫你加到待辦清單，如果需要設定提醒時間再告訴我，我可以幫你加到 Google Calendar」
+
+流程：先查看未來幾天的任務數量，選最空的一天，
+告訴用戶你的建議、說明原因、以及你判斷這是行程還是任務，等用戶確認後才新增。
 確認的方式：用戶說「好」、「可以」、「就這樣」之類的就算確認。
 今天是 ${getTodayTaipei()}。
 回覆不要用 markdown 格式（不要用 **粗體** 或 # 標題），因為是 Telegram 訊息。
@@ -244,7 +359,17 @@ async function executeTool(name: string, input: Record<string, string>): Promise
     case 'add_task': {
       const task = await addTaskToDate(input.date, input.title)
       if (!task) return '新增失敗'
-      return `已成功新增任務「${input.title}」到 ${input.date}`
+      return `已成功新增待辦任務「${input.title}」到 ${input.date}（Supabase 待辦清單）`
+    }
+    case 'add_calendar_event': {
+      const result = await createCalendarEvent({
+        title: input.title,
+        date: input.date,
+        start_time: input.start_time,
+        end_time: input.end_time,
+        location: input.location,
+      })
+      return result
     }
     default:
       return `未知工具：${name}`
