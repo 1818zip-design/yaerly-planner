@@ -204,17 +204,26 @@ async function fetchTasksRange(startDate: string, endDate: string): Promise<Task
 }
 
 async function addTaskToDate(date: string, title: string): Promise<Task | null> {
-  const res = await fetch(supabaseUrl('tasks'), {
+  const url = supabaseUrl('tasks')
+  const body = {
+    title, date, time_slot: 'anytime',
+    completed: false, carried_over: false, tags: [], goal_id: null,
+  }
+  console.log('[addTaskToDate] Inserting:', JSON.stringify(body))
+  const res = await fetch(url, {
     method: 'POST',
     headers: supabaseHeaders(),
-    body: JSON.stringify({
-      title, date, time_slot: 'anytime',
-      completed: false, carried_over: false, tags: [], goal_id: null,
-    }),
+    body: JSON.stringify(body),
   })
-  if (!res.ok) return null
+  if (!res.ok) {
+    const errText = await res.text()
+    console.error('[addTaskToDate] Failed:', res.status, errText)
+    return null
+  }
   const data = await res.json()
-  return Array.isArray(data) ? data[0] : data
+  const task = Array.isArray(data) ? data[0] : data
+  console.log('[addTaskToDate] Success:', task?.id, task?.title)
+  return task
 }
 
 async function updateTask(id: string, updates: Record<string, unknown>): Promise<boolean> {
@@ -271,7 +280,7 @@ const CLAUDE_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: 'add_task',
-    description: '新增一筆待辦任務到 Supabase（沒有明確時間點的事項）。例如：買東西、完成報告、訂票。只有在用戶明確確認後才呼叫。',
+    description: '新增一筆待辦任務到 Supabase（沒有明確時間點的事項）。例如：買東西、完成報告、訂票。簡單明確的任務可以直接新增，不需等確認。',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -283,7 +292,7 @@ const CLAUDE_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: 'add_calendar_event',
-    description: '新增一筆行程到 Google Calendar（有明確時間點的事項）。例如：開會、看醫生、搭車。只有在用戶明確確認後才呼叫。',
+    description: '新增一筆行程到 Google Calendar（有明確時間點的事項）。例如：開會、看醫生、搭車。用戶已給出明確時間時可以直接新增。',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -317,9 +326,17 @@ const SYSTEM_PROMPT = `你是用戶的貼心行程助理，說話簡潔自然，
 ⚠️ 不確定時 → 預設加到待辦清單（add_task），並告訴用戶：
   「我先幫你加到待辦清單，如果需要設定提醒時間再告訴我，我可以幫你加到 Google Calendar」
 
-流程：先查看未來幾天的任務數量，選最空的一天，
-告訴用戶你的建議、說明原因、以及你判斷這是行程還是任務，等用戶確認後才新增。
-確認的方式：用戶說「好」、「可以」、「就這樣」之類的就算確認。
+流程分兩種：
+
+1. 簡單明確的事項（用戶說了要做什麼，不需要選日期）：
+   直接加到今天（或用戶指定的日期），不需要等確認。加完後告訴用戶結果。
+   例如：「買牛奶」→ 直接呼叫 add_task 加到今天
+   例如：「明天下午3點開會」→ 直接呼叫 add_calendar_event
+   重要：你必須真的呼叫 add_task 或 add_calendar_event 工具，不能只用文字回覆說已新增。
+
+2. 需要建議日期的事項（用戶沒指定日期，或說「幫我排」「找個時間」）：
+   先用 get_week_tasks 查看未來幾天，選最空的一天，告訴用戶建議並說明原因，等確認後才新增。
+   確認的方式：用戶說「好」、「可以」、「就這樣」之類的就算確認。
 今天是 ${getTodayTaipei()}。
 回覆不要用 markdown 格式（不要用 **粗體** 或 # 標題），因為是 Telegram 訊息。
 如果需要強調可以用 emoji 或直接用文字表達。`
@@ -357,9 +374,14 @@ async function executeTool(name: string, input: Record<string, string>): Promise
       return `未來 7 天任務概覽：\n${lines.join('\n')}`
     }
     case 'add_task': {
+      console.log('[executeTool] add_task called:', input.date, input.title)
       const task = await addTaskToDate(input.date, input.title)
-      if (!task) return '新增失敗'
-      return `已成功新增待辦任務「${input.title}」到 ${input.date}（Supabase 待辦清單）`
+      if (!task) {
+        console.error('[executeTool] add_task failed for:', input.title)
+        return '新增失敗，Supabase 寫入錯誤'
+      }
+      console.log('[executeTool] add_task success, id:', task.id)
+      return `已成功新增待辦任務「${input.title}」到 ${input.date}，task id: ${task.id}`
     }
     case 'add_calendar_event': {
       const result = await createCalendarEvent({
