@@ -8,7 +8,8 @@
  *   SUPABASE_URL, SUPABASE_ANON_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
  *   ANTHROPIC_API_KEY
  *
- * Vercel Cron: "0 0 1 * *" (midnight UTC on the 1st = 8 AM Taipei)
+ * Vercel Cron: "0 16 28-31 * *" (runs 28-31st at UTC 16:00 = Taipei midnight)
+ * Code checks if today is actually the last day of the month.
  */
 
 import Anthropic from '@anthropic-ai/sdk'
@@ -52,11 +53,11 @@ async function sendTelegram(text: string): Promise<void> {
   })
 }
 
-function getLastMonthRange(): { startDate: string; endDate: string; label: string } {
+function getCurrentMonthRange(): { startDate: string; endDate: string; label: string } {
   const now = new Date()
   const taipeiNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }))
-  const year = taipeiNow.getMonth() === 0 ? taipeiNow.getFullYear() - 1 : taipeiNow.getFullYear()
-  const month = taipeiNow.getMonth() === 0 ? 12 : taipeiNow.getMonth()
+  const year = taipeiNow.getFullYear()
+  const month = taipeiNow.getMonth() + 1
   const lastDay = new Date(year, month, 0).getDate()
   const mm = String(month).padStart(2, '0')
   return {
@@ -73,7 +74,7 @@ interface ExpenseRow { amount: number; category: string }
 interface MoodRow { energy: number }
 
 async function main() {
-  const { startDate, endDate, label } = getLastMonthRange()
+  const { startDate, endDate, label } = getCurrentMonthRange()
   console.log(`[monthly-summary] Generating summary for ${label} (${startDate} ~ ${endDate})`)
 
   // Fetch all data in parallel
@@ -184,6 +185,14 @@ export default async function handler(req: any, res: any) {
   if (cronSecret && req.headers['authorization'] !== `Bearer ${cronSecret}`) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
+  // Only run on the actual last day of the month (cron fires 28-31st)
+  const taipeiNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }))
+  const todayDate = taipeiNow.getDate()
+  const lastDayOfMonth = new Date(taipeiNow.getFullYear(), taipeiNow.getMonth() + 1, 0).getDate()
+  if (todayDate !== lastDayOfMonth) {
+    return res.status(200).json({ ok: true, skip: `Not last day (${todayDate} != ${lastDayOfMonth})` })
+  }
+
   try {
     const result = await main()
     return res.status(200).json({ ok: true, ...result })
