@@ -16,7 +16,7 @@
  * Setup:
  *   1. Deploy to Vercel
  *   2. Set env vars: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, ANTHROPIC_API_KEY,
- *      VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY,
+ *      SUPABASE_URL, SUPABASE_ANON_KEY,
  *      GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN,
  *      GOOGLE_CALENDAR_ID (optional, defaults to 'primary')
  *   3. Register webhook:
@@ -80,7 +80,7 @@ function addDaysToDate(dateStr: string, days: number): string {
 }
 
 function supabaseHeaders() {
-  const key = env('VITE_SUPABASE_ANON_KEY')
+  const key = env('SUPABASE_ANON_KEY')
   return {
     apikey: key,
     Authorization: `Bearer ${key}`,
@@ -90,7 +90,7 @@ function supabaseHeaders() {
 }
 
 function supabaseUrl(path: string): string {
-  return `${env('VITE_SUPABASE_URL')}/rest/v1/${path}`
+  return `${env('SUPABASE_URL')}/rest/v1/${path}`
 }
 
 async function sendTelegram(chatId: number, text: string): Promise<void> {

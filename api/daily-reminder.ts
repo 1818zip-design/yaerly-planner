@@ -4,8 +4,8 @@
  * Sends a list of today's incomplete tasks via Telegram at 10 PM Taipei time.
  *
  * Environment variables needed:
- *   VITE_SUPABASE_URL       - Supabase project URL
- *   VITE_SUPABASE_ANON_KEY  - Supabase anon key
+ *   SUPABASE_URL       - Supabase project URL
+ *   SUPABASE_ANON_KEY  - Supabase anon key
  *   TELEGRAM_BOT_TOKEN      - Telegram Bot API token (from @BotFather)
  *   TELEGRAM_CHAT_ID        - Your Telegram chat ID (from @userinfobot)
  *
@@ -40,8 +40,8 @@ function getTodayTaipei(): string {
 }
 
 async function fetchIncompleteTasks(date: string): Promise<Task[]> {
-  const url = `${env('VITE_SUPABASE_URL')}/rest/v1/tasks?date=eq.${date}&completed=eq.false&order=created_at`
-  const key = env('VITE_SUPABASE_ANON_KEY')
+  const url = `${env('SUPABASE_URL')}/rest/v1/tasks?date=eq.${date}&completed=eq.false&order=created_at`
+  const key = env('SUPABASE_ANON_KEY')
   const res = await fetch(url, {
     headers: {
       apikey: key,
