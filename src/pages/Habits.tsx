@@ -194,11 +194,46 @@ export default function Habits() {
   }
 
   return (
-    <div style={{ padding: '24px 16px', maxWidth: '480px', margin: '0 auto' }}>
-      <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#1C1C1E', margin: '0 0 20px' }}>
-        習慣追蹤
-      </h1>
+    <div style={{ padding: '0', maxWidth: '480px', margin: '0 auto', display: 'flex', flexDirection: 'column' }}>
+      {/* Date navigation - always visible at top */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '24px 16px 16px',
+        }}
+      >
+        <button onClick={prevDay} style={{ background: 'none', border: 'none', color: '#8B9EC7', cursor: 'pointer', padding: '4px' }}>
+          <ChevronLeft size={20} />
+        </button>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '15px', fontWeight: '600', color: '#1C1C1E' }}>
+            {displayDate(selectedDate)}
+          </div>
+          {selectedDate !== today && (
+            <button
+              onClick={() => setSelectedDate(today)}
+              style={{ background: 'none', border: 'none', color: '#8B9EC7', fontSize: '11px', cursor: 'pointer', padding: '2px 0' }}
+            >
+              回到今天
+            </button>
+          )}
+        </div>
+        <button
+          onClick={nextDay}
+          disabled={selectedDate >= today}
+          style={{
+            background: 'none', border: 'none',
+            color: selectedDate >= today ? '#AEAEB2' : '#8B9EC7',
+            cursor: selectedDate >= today ? 'not-allowed' : 'pointer', padding: '4px',
+          }}
+        >
+          <ChevronRight size={20} />
+        </button>
+      </div>
 
+      <div style={{ padding: '0 16px 16px' }}>
       {/* Add new habit */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
         <input
@@ -233,37 +268,6 @@ export default function Habits() {
         </div>
       ) : (
         <>
-          {/* Date navigation */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <button onClick={prevDay} style={{ background: 'none', border: 'none', color: '#8B9EC7', cursor: 'pointer', padding: '4px' }}>
-              <ChevronLeft size={20} />
-            </button>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '15px', fontWeight: '600', color: '#1C1C1E' }}>
-                {displayDate(selectedDate)}
-              </div>
-              {selectedDate !== today && (
-                <button
-                  onClick={() => setSelectedDate(today)}
-                  style={{ background: 'none', border: 'none', color: '#8B9EC7', fontSize: '11px', cursor: 'pointer', padding: '2px 0' }}
-                >
-                  回到今天
-                </button>
-              )}
-            </div>
-            <button
-              onClick={nextDay}
-              disabled={selectedDate >= today}
-              style={{
-                background: 'none', border: 'none',
-                color: selectedDate >= today ? '#AEAEB2' : '#8B9EC7',
-                cursor: selectedDate >= today ? 'not-allowed' : 'pointer', padding: '4px',
-              }}
-            >
-              <ChevronRight size={20} />
-            </button>
-          </div>
-
           {/* Habit check-in for selected date */}
           <div style={{ marginBottom: '28px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -421,6 +425,7 @@ export default function Habits() {
           </div>
         </>
       )}
+      </div>
     </div>
   )
 }
