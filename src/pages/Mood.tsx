@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { supabase, getToday, formatDateTW } from '../lib/supabase'
+import { supabase, formatDateTW } from '../lib/supabase'
 import type { Journal, Mood as MoodType, MoodTag } from '../types'
 import { ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 
