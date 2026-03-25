@@ -6,7 +6,7 @@ export default function Layout() {
     <div
       style={{
         minHeight: '100dvh',
-        backgroundColor: '#ffffff',
+        backgroundColor: '#F2F2F7',
         display: 'flex',
         flexDirection: 'column',
       }}
@@ -15,7 +15,7 @@ export default function Layout() {
         style={{
           flex: 1,
           overflowY: 'auto',
-          paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+          paddingBottom: 'calc(84px + env(safe-area-inset-bottom, 0px))',
           maxWidth: '100vw',
           overflowX: 'hidden',
         }}

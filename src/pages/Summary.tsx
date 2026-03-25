@@ -4,8 +4,8 @@ import type { Task, HabitDefinition, HabitLog, Expense, Mood, Journal } from '..
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 const DAYS_ZH = ['日', '一', '二', '三', '四', '五', '六']
-const ENERGY_COLORS = ['#e5e5e5', '#ef4444', '#f97316', '#eab308', '#22c55e', '#6366f1']
-const ENERGY_BG = ['#f5f5f5', '#fef2f2', '#fff7ed', '#fefce8', '#f0fdf4', '#eef2ff']
+const ENERGY_COLORS = ['#AEAEB2', '#E8A0A0', '#E8C4A0', '#D4CC8E', '#8EBF9E', '#8B9EC7']
+const ENERGY_BG = ['#F2F2F7', '#FAF0F0', '#FAF4ED', '#F8F7EC', '#EFF7F2', '#EFF1F8']
 
 function getMonthRange(d: Date) {
   const y = d.getFullYear()
@@ -92,34 +92,36 @@ export default function Summary() {
   const selHabits = sel ? dayHabitLogs(sel) : []
   const selJournal = sel ? dayJournal(sel) : null
 
+  const card: React.CSSProperties = { backgroundColor: '#FFFFFF', borderRadius: '14px', padding: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
+
   return (
     <div style={{ padding: '24px 16px 16px', maxWidth: '480px', margin: '0 auto' }}>
       {/* Month header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-        <button onClick={prevMonth} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', padding: '4px' }}>
+        <button onClick={prevMonth} style={{ background: 'none', border: 'none', color: '#AEAEB2', cursor: 'pointer', padding: '4px' }}>
           <ChevronLeft size={20} />
         </button>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '18px', fontWeight: '700', color: '#1a1a1a' }}>
+          <div style={{ fontSize: '18px', fontWeight: '700', color: '#1C1C1E' }}>
             {year} 年 {month + 1} 月
           </div>
-          <div style={{ fontSize: '11px', color: '#999', marginTop: '2px' }}>
+          <div style={{ fontSize: '11px', color: '#6C6C70', marginTop: '2px' }}>
             {completedTasks}/{totalTasks} 任務 · ${totalExpense.toLocaleString()} · 心情 {avgMood}
           </div>
         </div>
-        <button onClick={nextMonth} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', padding: '4px' }}>
+        <button onClick={nextMonth} style={{ background: 'none', border: 'none', color: '#AEAEB2', cursor: 'pointer', padding: '4px' }}>
           <ChevronRight size={20} />
         </button>
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', color: '#bbb', padding: '40px 0' }}>載入中...</div>
+        <div style={{ textAlign: 'center', color: '#AEAEB2', padding: '40px 0' }}>載入中...</div>
       ) : (
         <>
           {/* Calendar grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '16px' }}>
             {DAYS_ZH.map(d => (
-              <div key={d} style={{ textAlign: 'center', fontSize: '11px', color: '#999', padding: '4px 0' }}>{d}</div>
+              <div key={d} style={{ textAlign: 'center', fontSize: '11px', color: '#AEAEB2', padding: '4px 0' }}>{d}</div>
             ))}
             {cells.map((day, i) => {
               if (day === null) return <div key={`e${i}`} />
@@ -130,8 +132,8 @@ export default function Summary() {
               const total = dt.length
               const isToday = dateStr === today
               const isSelected = dateStr === selectedDate
-              const bgColor = mood ? ENERGY_BG[mood.energy] : '#f9f9f9'
-              const borderColor = mood ? ENERGY_COLORS[mood.energy] : '#e5e5e5'
+              const bgColor = mood ? ENERGY_BG[mood.energy] : '#F2F2F7'
+              const dotColor = mood ? ENERGY_COLORS[mood.energy] : '#AEAEB2'
 
               return (
                 <button
@@ -140,7 +142,7 @@ export default function Summary() {
                   style={{
                     aspectRatio: '1',
                     borderRadius: '10px',
-                    border: isSelected ? `2px solid #7c3aed` : isToday ? `2px solid #333` : `1px solid ${borderColor}40`,
+                    border: isSelected ? '2px solid #8B9EC7' : isToday ? '2px solid #1C1C1E' : '1px solid transparent',
                     backgroundColor: bgColor,
                     cursor: 'pointer',
                     display: 'flex',
@@ -152,18 +154,18 @@ export default function Summary() {
                     position: 'relative',
                   }}
                 >
-                  <span style={{ fontSize: '13px', fontWeight: isToday ? '700' : '500', color: '#333' }}>
+                  <span style={{ fontSize: '13px', fontWeight: isToday ? '700' : '500', color: '#1C1C1E' }}>
                     {day}
                   </span>
                   {total > 0 && (
-                    <span style={{ fontSize: '8px', color: completed === total ? '#22c55e' : '#999' }}>
+                    <span style={{ fontSize: '8px', color: completed === total ? '#5C7A6B' : '#AEAEB2' }}>
                       {completed}/{total}
                     </span>
                   )}
                   {mood && (
                     <div style={{
                       width: '6px', height: '6px', borderRadius: '50%',
-                      backgroundColor: ENERGY_COLORS[mood.energy],
+                      backgroundColor: dotColor,
                       position: 'absolute', bottom: '3px', right: '3px',
                     }} />
                   )}
@@ -175,19 +177,19 @@ export default function Summary() {
           {/* Selected day detail */}
           {sel && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ fontSize: '14px', fontWeight: '600', color: '#1a1a1a', padding: '4px 0' }}>
+              <div style={{ fontSize: '14px', fontWeight: '600', color: '#1C1C1E', padding: '4px 0' }}>
                 {sel}
               </div>
 
               {/* Tasks */}
               {selTasks.length > 0 && (
-                <div style={{ backgroundColor: '#f7f7f8', borderRadius: '12px', padding: '14px', border: '1px solid #ebebeb' }}>
-                  <p style={{ fontSize: '11px', color: '#999', margin: '0 0 8px', fontWeight: '500' }}>任務</p>
+                <div style={card}>
+                  <p style={{ fontSize: '11px', color: '#AEAEB2', margin: '0 0 8px', fontWeight: '500' }}>任務</p>
                   {selTasks.map(t => (
                     <div key={t.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '4px 0' }}>
                       <span style={{ fontSize: '12px' }}>{t.completed ? '✅' : '⬜'}</span>
                       <span style={{
-                        fontSize: '13px', color: t.completed ? '#bbb' : '#333',
+                        fontSize: '13px', color: t.completed ? '#AEAEB2' : '#1C1C1E',
                         textDecoration: t.completed ? 'line-through' : 'none',
                       }}>{t.title}</span>
                     </div>
@@ -197,9 +199,9 @@ export default function Summary() {
 
               {/* Journal */}
               {selJournal && (
-                <div style={{ backgroundColor: '#f7f7f8', borderRadius: '12px', padding: '14px', border: '1px solid #ebebeb' }}>
-                  <p style={{ fontSize: '11px', color: '#999', margin: '0 0 8px', fontWeight: '500' }}>日記</p>
-                  <p style={{ fontSize: '13px', color: '#444', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                <div style={card}>
+                  <p style={{ fontSize: '11px', color: '#AEAEB2', margin: '0 0 8px', fontWeight: '500' }}>日記</p>
+                  <p style={{ fontSize: '13px', color: '#1C1C1E', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                     {selJournal.content}
                   </p>
                 </div>
@@ -207,13 +209,13 @@ export default function Summary() {
 
               {/* Expenses */}
               {selExpenses.length > 0 && (
-                <div style={{ backgroundColor: '#f7f7f8', borderRadius: '12px', padding: '14px', border: '1px solid #ebebeb' }}>
-                  <p style={{ fontSize: '11px', color: '#999', margin: '0 0 8px', fontWeight: '500' }}>
+                <div style={card}>
+                  <p style={{ fontSize: '11px', color: '#AEAEB2', margin: '0 0 8px', fontWeight: '500' }}>
                     花費 · ${selExpenses.reduce((s, e) => s + e.amount, 0).toLocaleString()}
                   </p>
                   {selExpenses.map(e => (
                     <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                      <span style={{ fontSize: '13px', color: '#444' }}>{e.title}</span>
+                      <span style={{ fontSize: '13px', color: '#1C1C1E' }}>{e.title}</span>
                       <span style={{ fontSize: '13px', color: '#d97706' }}>${e.amount.toLocaleString()}</span>
                     </div>
                   ))}
@@ -222,14 +224,14 @@ export default function Summary() {
 
               {/* Habits */}
               {selHabits.length > 0 && (
-                <div style={{ backgroundColor: '#f7f7f8', borderRadius: '12px', padding: '14px', border: '1px solid #ebebeb' }}>
-                  <p style={{ fontSize: '11px', color: '#999', margin: '0 0 8px', fontWeight: '500' }}>習慣</p>
+                <div style={card}>
+                  <p style={{ fontSize: '11px', color: '#AEAEB2', margin: '0 0 8px', fontWeight: '500' }}>習慣</p>
                   {selHabits.map(l => {
                     const def = habitDefs.find(d => d.id === l.habit_id)
                     return (
                       <div key={l.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '4px 0' }}>
                         <span style={{ fontSize: '12px' }}>✅</span>
-                        <span style={{ fontSize: '13px', color: '#22c55e' }}>{def?.name || '習慣'}</span>
+                        <span style={{ fontSize: '13px', color: '#5C7A6B' }}>{def?.name || '習慣'}</span>
                       </div>
                     )
                   })}
@@ -238,27 +240,27 @@ export default function Summary() {
 
               {/* Mood */}
               {selMood && (
-                <div style={{ backgroundColor: '#f7f7f8', borderRadius: '12px', padding: '14px', border: '1px solid #ebebeb' }}>
-                  <p style={{ fontSize: '11px', color: '#999', margin: '0 0 8px', fontWeight: '500' }}>心情</p>
+                <div style={card}>
+                  <p style={{ fontSize: '11px', color: '#AEAEB2', margin: '0 0 8px', fontWeight: '500' }}>心情</p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '20px', fontWeight: '700', color: ENERGY_COLORS[selMood.energy] }}>
                       {selMood.energy}/5
                     </span>
                     {selMood.tags.length > 0 && (
-                      <span style={{ fontSize: '12px', color: '#888' }}>
+                      <span style={{ fontSize: '12px', color: '#6C6C70' }}>
                         {selMood.tags.join('、')}
                       </span>
                     )}
                   </div>
                   {selMood.note && (
-                    <p style={{ fontSize: '12px', color: '#666', margin: '6px 0 0' }}>{selMood.note}</p>
+                    <p style={{ fontSize: '12px', color: '#6C6C70', margin: '6px 0 0' }}>{selMood.note}</p>
                   )}
                 </div>
               )}
 
               {/* Empty state */}
               {selTasks.length === 0 && !selJournal && selExpenses.length === 0 && selHabits.length === 0 && !selMood && (
-                <div style={{ textAlign: 'center', color: '#ccc', fontSize: '13px', padding: '20px 0' }}>
+                <div style={{ textAlign: 'center', color: '#AEAEB2', fontSize: '13px', padding: '20px 0' }}>
                   這天沒有任何記錄
                 </div>
               )}

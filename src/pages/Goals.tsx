@@ -55,19 +55,19 @@ function EditModal({ goal, allGoals, relatedTasks, onSave, onClose }: EditModalP
     >
       <div
         style={{
-          backgroundColor: '#ffffff', borderRadius: '20px', padding: '24px',
-          width: '100%', maxWidth: '400px', border: '1px solid #e5e5e5',
+          backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '24px',
+          width: '100%', maxWidth: '400px',
           maxHeight: '85dvh', overflowY: 'auto',
           WebkitOverflowScrolling: 'touch',
           boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
         }}
         onClick={e => e.stopPropagation()}
       >
-        <h3 style={{ margin: '0 0 20px', fontSize: '16px', color: '#1a1a1a' }}>
+        <h3 style={{ margin: '0 0 20px', fontSize: '16px', color: '#1C1C1E', fontWeight: '600' }}>
           目標 #{goal.position}
         </h3>
 
-        <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', color: '#888' }}>
+        <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', color: '#6C6C70' }}>
           目標名稱
         </label>
         <input
@@ -76,37 +76,40 @@ function EditModal({ goal, allGoals, relatedTasks, onSave, onClose }: EditModalP
           onChange={e => setTitle(e.target.value)}
           placeholder="輸入目標..."
           style={{
-            width: '100%', padding: '10px 12px', backgroundColor: '#f7f7f8',
-            border: '1px solid #e5e5e5', borderRadius: '10px', color: '#1a1a1a',
+            width: '100%', padding: '10px 12px', backgroundColor: 'rgba(118,118,128,0.12)',
+            border: 'none', borderRadius: '10px', color: '#1C1C1E',
             fontSize: '14px', outline: 'none', marginBottom: '16px',
           }}
         />
 
-        <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', color: '#888' }}>
+        <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', color: '#6C6C70' }}>
           類別
         </label>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
-          {CATEGORIES.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              style={{
-                padding: '6px 12px', borderRadius: '20px',
-                border: `1px solid ${category === cat ? getCategoryColor(cat) : '#e5e5e5'}`,
-                backgroundColor: category === cat ? `${getCategoryColor(cat)}15` : 'transparent',
-                color: category === cat ? getCategoryColor(cat) : '#888',
-                fontSize: '12px', cursor: 'pointer',
-              }}
-            >
-              {cat}
-            </button>
-          ))}
+          {CATEGORIES.map(cat => {
+            const catColor = getCategoryColor(cat)
+            return (
+              <button
+                key={cat}
+                onClick={() => setCategory(cat)}
+                style={{
+                  padding: '6px 12px', borderRadius: '20px',
+                  border: 'none',
+                  backgroundColor: category === cat ? catColor + '20' : 'rgba(118,118,128,0.08)',
+                  color: category === cat ? catColor : '#6C6C70',
+                  fontSize: '12px', cursor: 'pointer', fontWeight: category === cat ? '600' : '400',
+                }}
+              >
+                {cat}
+              </button>
+            )
+          })}
         </div>
 
         {/* Connections */}
         {otherGoals.length > 0 && (
           <>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', color: '#888' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', color: '#6C6C70' }}>
               關聯目標（選填）
             </label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '20px' }}>
@@ -119,9 +122,10 @@ function EditModal({ goal, allGoals, relatedTasks, onSave, onClose }: EditModalP
                     onClick={() => toggleConnection(g.id)}
                     style={{
                       padding: '5px 10px', borderRadius: '8px',
-                      border: `1px solid ${selected ? color : '#e5e5e5'}`,
-                      backgroundColor: selected ? color + '15' : 'transparent',
-                      color: selected ? color : '#888', fontSize: '11px', cursor: 'pointer',
+                      border: 'none',
+                      backgroundColor: selected ? color + '20' : 'rgba(118,118,128,0.08)',
+                      color: selected ? color : '#6C6C70', fontSize: '11px', cursor: 'pointer',
+                      fontWeight: selected ? '600' : '400',
                     }}
                   >
                     #{g.position} {g.title}
@@ -135,16 +139,16 @@ function EditModal({ goal, allGoals, relatedTasks, onSave, onClose }: EditModalP
         {/* Related tasks */}
         {goal.id && (
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', color: '#888' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', color: '#6C6C70' }}>
               相關任務
               {relatedTasks.length > 0 && (
-                <span style={{ marginLeft: '8px', color: '#7c3aed' }}>
+                <span style={{ marginLeft: '8px', color: '#8B9EC7' }}>
                   {completedRelated}/{relatedTasks.length} 完成
                 </span>
               )}
             </label>
             {relatedTasks.length === 0 ? (
-              <p style={{ fontSize: '13px', color: '#ccc', margin: 0 }}>尚無關聯任務</p>
+              <p style={{ fontSize: '13px', color: '#AEAEB2', margin: 0 }}>尚無關聯任務</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '200px', overflowY: 'auto' }}>
                 {relatedTasks.map(task => (
@@ -152,23 +156,23 @@ function EditModal({ goal, allGoals, relatedTasks, onSave, onClose }: EditModalP
                     key={task.id}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '8px',
-                      padding: '8px 10px', backgroundColor: '#f7f7f8',
-                      borderRadius: '8px', border: '1px solid #ebebeb',
+                      padding: '8px 10px', backgroundColor: 'rgba(118,118,128,0.08)',
+                      borderRadius: '10px',
                     }}
                   >
                     {task.completed ? (
-                      <CheckCircle size={14} color="#7c3aed" style={{ flexShrink: 0 }} />
+                      <CheckCircle size={14} color="#8B9EC7" style={{ flexShrink: 0 }} />
                     ) : (
-                      <Circle size={14} color="#ccc" style={{ flexShrink: 0 }} />
+                      <Circle size={14} color="#AEAEB2" style={{ flexShrink: 0 }} />
                     )}
                     <span style={{
                       fontSize: '13px', flex: 1,
-                      color: task.completed ? '#bbb' : '#444',
+                      color: task.completed ? '#AEAEB2' : '#1C1C1E',
                       textDecoration: task.completed ? 'line-through' : 'none',
                     }}>
                       {task.title}
                     </span>
-                    <span style={{ fontSize: '10px', color: '#bbb', flexShrink: 0 }}>
+                    <span style={{ fontSize: '10px', color: '#AEAEB2', flexShrink: 0 }}>
                       {task.date}
                     </span>
                   </div>
@@ -177,13 +181,13 @@ function EditModal({ goal, allGoals, relatedTasks, onSave, onClose }: EditModalP
             )}
             {relatedTasks.length > 0 && (
               <div style={{
-                marginTop: '8px', height: '3px', backgroundColor: '#e5e5e5',
+                marginTop: '8px', height: '3px', backgroundColor: 'rgba(118,118,128,0.12)',
                 borderRadius: '2px', overflow: 'hidden',
               }}>
                 <div style={{
                   height: '100%',
                   width: `${(completedRelated / relatedTasks.length) * 100}%`,
-                  backgroundColor: '#7c3aed', borderRadius: '2px',
+                  backgroundColor: '#8B9EC7', borderRadius: '2px',
                   transition: 'width 0.3s',
                 }} />
               </div>
@@ -196,8 +200,8 @@ function EditModal({ goal, allGoals, relatedTasks, onSave, onClose }: EditModalP
             onClick={onClose}
             style={{
               flex: 1, padding: '12px', borderRadius: '10px',
-              border: '1px solid #e5e5e5', backgroundColor: 'transparent',
-              color: '#888', fontSize: '14px', cursor: 'pointer',
+              border: 'none', backgroundColor: 'rgba(118,118,128,0.08)',
+              color: '#6C6C70', fontSize: '14px', cursor: 'pointer',
             }}
           >
             取消
@@ -209,8 +213,8 @@ function EditModal({ goal, allGoals, relatedTasks, onSave, onClose }: EditModalP
             disabled={!title.trim()}
             style={{
               flex: 1, padding: '12px', borderRadius: '10px', border: 'none',
-              backgroundColor: title.trim() ? '#7c3aed' : '#e5e5e5',
-              color: title.trim() ? '#fff' : '#999',
+              backgroundColor: title.trim() ? '#8B9EC7' : 'rgba(118,118,128,0.12)',
+              color: title.trim() ? '#fff' : '#AEAEB2',
               fontSize: '14px', fontWeight: '600',
               cursor: title.trim() ? 'pointer' : 'not-allowed',
             }}
@@ -351,25 +355,25 @@ export default function Goals() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80dvh', color: '#999' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80dvh', color: '#AEAEB2' }}>
         載入中...
       </div>
     )
   }
 
   return (
-    <div style={{ padding: '24px 16px', maxWidth: '480px', margin: '0 auto' }}>
+    <div style={{ padding: '24px 16px', maxWidth: '480px', margin: '0 auto', backgroundColor: '#F2F2F7', minHeight: '100dvh' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#1a1a1a', margin: 0 }}>
+        <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#1C1C1E', margin: 0 }}>
           2026 年度目標
         </h1>
-        <span style={{ fontSize: '14px', color: '#7c3aed', fontWeight: '600' }}>
+        <span style={{ fontSize: '14px', color: '#8B9EC7', fontWeight: '600' }}>
           {completedCount} / 20
         </span>
       </div>
 
-      <div style={{ height: '3px', backgroundColor: '#e5e5e5', borderRadius: '2px', marginBottom: '24px', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${(completedCount / 20) * 100}%`, backgroundColor: '#7c3aed', borderRadius: '2px', transition: 'width 0.4s ease' }} />
+      <div style={{ height: '3px', backgroundColor: 'rgba(118,118,128,0.12)', borderRadius: '2px', marginBottom: '24px', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${(completedCount / 20) * 100}%`, backgroundColor: '#8B9EC7', borderRadius: '2px', transition: 'width 0.4s ease' }} />
       </div>
 
       <div ref={containerRef} style={{ position: 'relative', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
@@ -382,7 +386,7 @@ export default function Goals() {
 
         {Array.from({ length: 20 }, (_, i) => i + 1).map(pos => {
           const goal = getGoalAtPosition(pos)
-          const color = goal ? getCategoryColor(goal.category) : '#e5e5e5'
+          const color = goal ? getCategoryColor(goal.category) : '#AEAEB2'
           const isCompleted = goal?.completed ?? false
           // Task-based progress indicator
           const goalTasks = goal ? getTasksForGoal(goal.id) : []
@@ -397,8 +401,8 @@ export default function Goals() {
               ref={el => { cellRefs.current[pos - 1] = el }}
               style={{
                 position: 'relative', aspectRatio: '1', borderRadius: '14px',
-                border: `1px solid ${goal ? color + '55' : '#e5e5e5'}`,
-                backgroundColor: isCompleted ? '#1a1a1a' : (goal ? color + '10' : '#f7f7f8'),
+                backgroundColor: isCompleted ? '#1C1C1E' : (goal ? color + '10' : '#FFFFFF'),
+                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
                 cursor: 'pointer', display: 'flex', flexDirection: 'column',
                 alignItems: 'center', justifyContent: 'center', padding: '8px',
                 overflow: 'hidden', transition: 'all 0.2s', zIndex: 2,
@@ -408,7 +412,7 @@ export default function Goals() {
               {isCompleted && (
                 <div
                   style={{
-                    position: 'absolute', inset: 0, backgroundColor: '#1a1a1a',
+                    position: 'absolute', inset: 0, backgroundColor: '#1C1C1E',
                     borderRadius: '13px', display: 'flex', alignItems: 'center',
                     justifyContent: 'center', zIndex: 2,
                   }}
@@ -418,7 +422,7 @@ export default function Goals() {
                 </div>
               )}
 
-              <span style={{ position: 'absolute', top: '6px', left: '8px', fontSize: '10px', color: '#bbb', fontWeight: '500' }}>
+              <span style={{ position: 'absolute', top: '6px', left: '8px', fontSize: '10px', color: '#AEAEB2', fontWeight: '500' }}>
                 {pos}
               </span>
 
@@ -426,7 +430,7 @@ export default function Goals() {
                 <>
                   <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: color, marginBottom: '6px', flexShrink: 0 }} />
                   <p style={{
-                    fontSize: '11px', fontWeight: '500', color: '#444', margin: 0,
+                    fontSize: '11px', fontWeight: '500', color: '#1C1C1E', margin: 0,
                     textAlign: 'center', lineHeight: 1.3, wordBreak: 'break-all',
                     display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
                   }}>
@@ -450,7 +454,7 @@ export default function Goals() {
                       style={{
                         position: 'absolute', bottom: '5px', right: '5px',
                         width: '16px', height: '16px', borderRadius: '50%',
-                        border: `1px solid ${color}66`, backgroundColor: 'transparent',
+                        border: 'none', backgroundColor: color + '15',
                         cursor: 'pointer', padding: 0, display: 'flex',
                         alignItems: 'center', justifyContent: 'center',
                       }}
@@ -460,18 +464,22 @@ export default function Goals() {
                   )}
                 </>
               ) : (
-                <span style={{ fontSize: '18px', color: '#ccc' }}>+</span>
+                <span style={{ fontSize: '18px', color: '#AEAEB2' }}>+</span>
               )}
             </div>
           )
         })}
       </div>
 
-      <div style={{ marginTop: '24px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+      <div style={{
+        marginTop: '24px', display: 'flex', flexWrap: 'wrap', gap: '8px',
+        backgroundColor: '#FFFFFF', borderRadius: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+        padding: '12px 14px',
+      }}>
         {CATEGORIES.map(cat => (
           <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: getCategoryColor(cat) }} />
-            <span style={{ fontSize: '11px', color: '#888' }}>{cat}</span>
+            <span style={{ fontSize: '11px', color: '#6C6C70' }}>{cat}</span>
           </div>
         ))}
       </div>

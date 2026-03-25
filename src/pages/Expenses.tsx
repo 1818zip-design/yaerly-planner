@@ -154,24 +154,24 @@ export default function Expenses() {
   // Selected category expenses
   const catExpenses = selectedCategory ? expenses.filter(e => e.category === selectedCategory).sort((a, b) => a.date > b.date ? -1 : 1) : []
 
-  const card = { backgroundColor: '#f7f7f8', borderRadius: '16px', padding: '16px', border: '1px solid #ebebeb' }
+  const card: React.CSSProperties = { backgroundColor: '#FFFFFF', borderRadius: '14px', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
 
   if (loading) {
-    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80dvh', color: '#999' }}>載入中...</div>
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80dvh', color: '#AEAEB2' }}>載入中...</div>
   }
 
   return (
     <div style={{ padding: '24px 16px 16px', maxWidth: '480px', margin: '0 auto' }}>
       {/* Month navigation */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-        <button onClick={() => setCurrentMonth(new Date(year, month - 1, 1))} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', padding: '4px' }}>
+        <button onClick={() => setCurrentMonth(new Date(year, month - 1, 1))} style={{ background: 'none', border: 'none', color: '#AEAEB2', cursor: 'pointer', padding: '4px' }}>
           <ChevronLeft size={20} />
         </button>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '18px', fontWeight: '700', color: '#1a1a1a' }}>{year} 年 {month + 1} 月</div>
+          <div style={{ fontSize: '18px', fontWeight: '700', color: '#1C1C1E' }}>{year} 年 {month + 1} 月</div>
           <div style={{ fontSize: '24px', fontWeight: '700', color: '#d97706', marginTop: '4px' }}>${monthTotal.toLocaleString()}</div>
         </div>
-        <button onClick={() => setCurrentMonth(new Date(year, month + 1, 1))} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', padding: '4px' }}>
+        <button onClick={() => setCurrentMonth(new Date(year, month + 1, 1))} style={{ background: 'none', border: 'none', color: '#AEAEB2', cursor: 'pointer', padding: '4px' }}>
           <ChevronRight size={20} />
         </button>
       </div>
@@ -179,29 +179,29 @@ export default function Expenses() {
       {/* Stats bar */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '16px' }}>
         <div style={{ ...card, padding: '12px', textAlign: 'center' }}>
-          <div style={{ fontSize: '10px', color: '#999' }}>日均</div>
-          <div style={{ fontSize: '15px', fontWeight: '700', color: '#333' }}>${dailyAvg.toLocaleString()}</div>
+          <div style={{ fontSize: '10px', color: '#AEAEB2' }}>日均</div>
+          <div style={{ fontSize: '15px', fontWeight: '700', color: '#1C1C1E' }}>${dailyAvg.toLocaleString()}</div>
         </div>
         <div style={{ ...card, padding: '12px', textAlign: 'center' }}>
-          <div style={{ fontSize: '10px', color: '#999' }}>最大單筆</div>
-          <div style={{ fontSize: '15px', fontWeight: '700', color: '#333' }}>${maxExpense ? maxExpense.amount.toLocaleString() : '0'}</div>
+          <div style={{ fontSize: '10px', color: '#AEAEB2' }}>最大單筆</div>
+          <div style={{ fontSize: '15px', fontWeight: '700', color: '#1C1C1E' }}>${maxExpense ? maxExpense.amount.toLocaleString() : '0'}</div>
         </div>
         <div style={{ ...card, padding: '12px', textAlign: 'center' }}>
-          <div style={{ fontSize: '10px', color: '#999' }}>最常分類</div>
-          <div style={{ fontSize: '15px', fontWeight: '700', color: CATEGORY_COLORS[topCategory as ExpenseCategory] || '#333' }}>{topCategory}</div>
+          <div style={{ fontSize: '10px', color: '#AEAEB2' }}>最常分類</div>
+          <div style={{ fontSize: '15px', fontWeight: '700', color: CATEGORY_COLORS[topCategory as ExpenseCategory] || '#1C1C1E' }}>{topCategory}</div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '0', marginBottom: '16px', borderRadius: '10px', overflow: 'hidden', border: '1px solid #e5e5e5' }}>
+      <div style={{ display: 'flex', gap: '0', marginBottom: '16px', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#F2F2F7' }}>
         {([['overview', '總覽'], ['category', '分類'], ['list', '明細']] as [Tab, string][]).map(([key, label]) => (
           <button
             key={key}
             onClick={() => { setTab(key); setSelectedDay(null); setSelectedCategory(null) }}
             style={{
               flex: 1, padding: '10px', border: 'none',
-              backgroundColor: tab === key ? '#7c3aed' : '#fff',
-              color: tab === key ? '#fff' : '#888',
+              backgroundColor: tab === key ? '#8B9EC7' : '#FFFFFF',
+              color: tab === key ? '#fff' : '#6C6C70',
               fontSize: '13px', fontWeight: '600', cursor: 'pointer',
             }}
           >
@@ -216,7 +216,7 @@ export default function Expenses() {
           {/* Pie chart */}
           {pieData.length > 0 && (
             <div style={card}>
-              <p style={{ fontSize: '12px', color: '#999', margin: '0 0 8px', fontWeight: '500' }}>分類佔比</p>
+              <p style={{ fontSize: '12px', color: '#AEAEB2', margin: '0 0 8px', fontWeight: '500' }}>分類佔比</p>
               <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
                   <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} innerRadius={40} paddingAngle={2}>
@@ -227,7 +227,7 @@ export default function Expenses() {
               </ResponsiveContainer>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
                 {pieData.map(d => (
-                  <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#666' }}>
+                  <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#6C6C70' }}>
                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: CATEGORY_COLORS[d.name as ExpenseCategory] }} />
                     {d.name}
                   </div>
@@ -239,11 +239,11 @@ export default function Expenses() {
           {/* Daily bar chart */}
           {expenses.length > 0 && (
             <div style={card}>
-              <p style={{ fontSize: '12px', color: '#999', margin: '0 0 8px', fontWeight: '500' }}>每日花費</p>
+              <p style={{ fontSize: '12px', color: '#AEAEB2', margin: '0 0 8px', fontWeight: '500' }}>每日花費</p>
               <ResponsiveContainer width="100%" height={140}>
                 <BarChart data={dailyData} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
-                  <XAxis dataKey="day" tick={{ fill: '#999', fontSize: 9 }} axisLine={false} tickLine={false} interval={4} />
-                  <YAxis tick={{ fill: '#999', fontSize: 9 }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="day" tick={{ fill: '#AEAEB2', fontSize: 9 }} axisLine={false} tickLine={false} interval={4} />
+                  <YAxis tick={{ fill: '#AEAEB2', fontSize: 9 }} axisLine={false} tickLine={false} />
                   <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, '金額']} />
                   <Bar
                     dataKey="amount" radius={[3, 3, 0, 0]} fill="#d97706"
@@ -261,16 +261,16 @@ export default function Expenses() {
           {selectedDay && dayExpenses.length > 0 && (
             <div style={card}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <p style={{ fontSize: '12px', color: '#999', margin: 0, fontWeight: '500' }}>{selectedDay}</p>
+                <p style={{ fontSize: '12px', color: '#AEAEB2', margin: 0, fontWeight: '500' }}>{selectedDay}</p>
                 <span style={{ fontSize: '14px', fontWeight: '700', color: '#d97706' }}>
                   ${dayExpenses.reduce((s, e) => s + e.amount, 0).toLocaleString()}
                 </span>
               </div>
-              {dayExpenses.map(e => (
-                <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #ebebeb' }}>
+              {dayExpenses.map((e, i) => (
+                <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: i < dayExpenses.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: CATEGORY_COLORS[e.category] }} />
-                    <span style={{ fontSize: '13px', color: '#333' }}>{e.title}</span>
+                    <span style={{ fontSize: '13px', color: '#1C1C1E' }}>{e.title}</span>
                   </div>
                   <span style={{ fontSize: '13px', fontWeight: '600', color: '#d97706' }}>${e.amount.toLocaleString()}</span>
                 </div>
@@ -302,10 +302,10 @@ export default function Expenses() {
                   {cat.pct}%
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '14px', color: '#333', fontWeight: '500' }}>{cat.name}</div>
-                  <div style={{ fontSize: '11px', color: '#999' }}>{cat.count} 筆</div>
+                  <div style={{ fontSize: '14px', color: '#1C1C1E', fontWeight: '500' }}>{cat.name}</div>
+                  <div style={{ fontSize: '11px', color: '#AEAEB2' }}>{cat.count} 筆</div>
                 </div>
-                <div style={{ fontSize: '15px', fontWeight: '700', color: cat.amount > 0 ? '#333' : '#ccc' }}>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: cat.amount > 0 ? '#1C1C1E' : '#AEAEB2' }}>
                   ${cat.amount.toLocaleString()}
                 </div>
               </button>
@@ -314,7 +314,7 @@ export default function Expenses() {
             <>
               <button
                 onClick={() => setSelectedCategory(null)}
-                style={{ background: 'none', border: 'none', color: '#7c3aed', fontSize: '13px', cursor: 'pointer', textAlign: 'left', padding: '4px 0', marginBottom: '4px' }}
+                style={{ background: 'none', border: 'none', color: '#8B9EC7', fontSize: '13px', cursor: 'pointer', textAlign: 'left', padding: '4px 0', marginBottom: '4px' }}
               >
                 ← 返回分類
               </button>
@@ -324,14 +324,14 @@ export default function Expenses() {
               {catExpenses.map(e => (
                 <div key={e.id} style={{ ...card, display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '14px', color: '#333' }}>{e.title}</div>
-                    <div style={{ fontSize: '11px', color: '#999' }}>{e.date}{e.note ? ` · ${e.note}` : ''}</div>
+                    <div style={{ fontSize: '14px', color: '#1C1C1E' }}>{e.title}</div>
+                    <div style={{ fontSize: '11px', color: '#AEAEB2' }}>{e.date}{e.note ? ` · ${e.note}` : ''}</div>
                   </div>
                   <span style={{ fontSize: '14px', fontWeight: '600', color: '#d97706' }}>${e.amount.toLocaleString()}</span>
-                  <button onClick={() => openEdit(e)} style={{ background: 'none', border: 'none', color: '#bbb', cursor: 'pointer', padding: '2px' }}>
+                  <button onClick={() => openEdit(e)} style={{ background: 'none', border: 'none', color: '#AEAEB2', cursor: 'pointer', padding: '2px' }}>
                     <Pencil size={13} />
                   </button>
-                  <button onClick={() => deleteExpense(e.id)} style={{ background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', padding: '2px' }}>
+                  <button onClick={() => deleteExpense(e.id)} style={{ background: 'none', border: 'none', color: '#AEAEB2', cursor: 'pointer', padding: '2px' }}>
                     <Trash2 size={13} />
                   </button>
                 </div>
@@ -345,14 +345,14 @@ export default function Expenses() {
       {tab === 'list' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {expenses.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#ccc', padding: '40px 0', fontSize: '14px' }}>本月尚無記錄</div>
+            <div style={{ textAlign: 'center', color: '#AEAEB2', padding: '40px 0', fontSize: '14px' }}>本月尚無記錄</div>
           ) : (
             expenses.map(e => (
               <div key={e.id} style={{ ...card, display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px' }}>
                 <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: CATEGORY_COLORS[e.category], flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '14px', color: '#333' }}>{e.title}</div>
-                  <div style={{ fontSize: '11px', color: '#999' }}>
+                  <div style={{ fontSize: '14px', color: '#1C1C1E' }}>{e.title}</div>
+                  <div style={{ fontSize: '11px', color: '#AEAEB2' }}>
                     {e.date}
                     <span style={{
                       marginLeft: '6px', fontSize: '10px', color: CATEGORY_COLORS[e.category],
@@ -366,10 +366,10 @@ export default function Expenses() {
                 <span style={{ fontSize: '14px', fontWeight: '600', color: '#d97706', flexShrink: 0 }}>
                   ${e.amount.toLocaleString()}
                 </span>
-                <button onClick={() => openEdit(e)} style={{ background: 'none', border: 'none', color: '#bbb', cursor: 'pointer', padding: '2px', flexShrink: 0 }}>
+                <button onClick={() => openEdit(e)} style={{ background: 'none', border: 'none', color: '#AEAEB2', cursor: 'pointer', padding: '2px', flexShrink: 0 }}>
                   <Pencil size={13} />
                 </button>
-                <button onClick={() => deleteExpense(e.id)} style={{ background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', padding: '2px', flexShrink: 0 }}>
+                <button onClick={() => deleteExpense(e.id)} style={{ background: 'none', border: 'none', color: '#AEAEB2', cursor: 'pointer', padding: '2px', flexShrink: 0 }}>
                   <Trash2 size={13} />
                 </button>
               </div>
@@ -385,8 +385,8 @@ export default function Expenses() {
           style={{
             position: 'fixed', bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
             right: '20px', width: '52px', height: '52px', borderRadius: '50%',
-            backgroundColor: '#7c3aed', color: '#fff', border: 'none',
-            boxShadow: '0 4px 16px rgba(124,58,237,0.3)',
+            backgroundColor: '#8B9EC7', color: '#fff', border: 'none',
+            boxShadow: '0 4px 16px rgba(139,158,199,0.4)',
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
             zIndex: 50,
           }}
@@ -412,22 +412,22 @@ export default function Expenses() {
               padding: '24px 20px', paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
               width: '100%', maxWidth: '480px',
               maxHeight: '85dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch',
-              boxShadow: '0 -10px 40px rgba(0,0,0,0.1)',
+              boxShadow: '0 -10px 40px rgba(0,0,0,0.12)',
             }}
             onClick={e => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', color: '#1a1a1a' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', color: '#1C1C1E' }}>
                 {editingId ? '編輯消費' : '新增消費'}
               </h3>
-              <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer' }}>
+              <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', color: '#AEAEB2', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
 
             {/* Amount - big input */}
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <span style={{ fontSize: '14px', color: '#999' }}>$</span>
+              <span style={{ fontSize: '14px', color: '#AEAEB2' }}>$</span>
               <input
                 autoFocus
                 value={fAmount}
@@ -448,9 +448,9 @@ export default function Expenses() {
               onChange={e => setFTitle(e.target.value)}
               placeholder="名稱..."
               style={{
-                width: '100%', padding: '12px', backgroundColor: '#f7f7f8',
-                border: '1px solid #e5e5e5', borderRadius: '10px',
-                color: '#1a1a1a', fontSize: '15px', outline: 'none', marginBottom: '12px',
+                width: '100%', padding: '12px', backgroundColor: 'rgba(118,118,128,0.12)',
+                border: 'none', borderRadius: '10px',
+                color: '#1C1C1E', fontSize: '15px', outline: 'none', marginBottom: '12px',
               }}
             />
 
@@ -461,9 +461,9 @@ export default function Expenses() {
                   onClick={() => setFCategory(cat)}
                   style={{
                     padding: '6px 12px', borderRadius: '20px',
-                    border: `1.5px solid ${fCategory === cat ? CATEGORY_COLORS[cat] : '#e5e5e5'}`,
+                    border: `1.5px solid ${fCategory === cat ? CATEGORY_COLORS[cat] : 'rgba(118,118,128,0.12)'}`,
                     backgroundColor: fCategory === cat ? CATEGORY_COLORS[cat] + '15' : 'transparent',
-                    color: fCategory === cat ? CATEGORY_COLORS[cat] : '#888',
+                    color: fCategory === cat ? CATEGORY_COLORS[cat] : '#6C6C70',
                     fontSize: '12px', fontWeight: '500', cursor: 'pointer',
                   }}
                 >
@@ -478,9 +478,9 @@ export default function Expenses() {
                 value={fDate}
                 onChange={e => setFDate(e.target.value)}
                 style={{
-                  flex: 1, padding: '10px 12px', backgroundColor: '#f7f7f8',
-                  border: '1px solid #e5e5e5', borderRadius: '10px',
-                  color: '#1a1a1a', fontSize: '13px', outline: 'none',
+                  flex: 1, padding: '10px 12px', backgroundColor: 'rgba(118,118,128,0.12)',
+                  border: 'none', borderRadius: '10px',
+                  color: '#1C1C1E', fontSize: '13px', outline: 'none',
                 }}
               />
               <input
@@ -488,9 +488,9 @@ export default function Expenses() {
                 onChange={e => setFNote(e.target.value)}
                 placeholder="備註（選填）"
                 style={{
-                  flex: 1, padding: '10px 12px', backgroundColor: '#f7f7f8',
-                  border: '1px solid #e5e5e5', borderRadius: '10px',
-                  color: '#1a1a1a', fontSize: '13px', outline: 'none',
+                  flex: 1, padding: '10px 12px', backgroundColor: 'rgba(118,118,128,0.12)',
+                  border: 'none', borderRadius: '10px',
+                  color: '#1C1C1E', fontSize: '13px', outline: 'none',
                 }}
               />
             </div>
@@ -500,8 +500,8 @@ export default function Expenses() {
               disabled={!fTitle.trim() || !fAmount.trim()}
               style={{
                 width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
-                backgroundColor: fTitle.trim() && fAmount.trim() ? '#7c3aed' : '#e5e5e5',
-                color: fTitle.trim() && fAmount.trim() ? '#fff' : '#999',
+                backgroundColor: fTitle.trim() && fAmount.trim() ? '#8B9EC7' : '#F2F2F7',
+                color: fTitle.trim() && fAmount.trim() ? '#fff' : '#AEAEB2',
                 fontSize: '15px', fontWeight: '600',
                 cursor: fTitle.trim() && fAmount.trim() ? 'pointer' : 'not-allowed',
               }}

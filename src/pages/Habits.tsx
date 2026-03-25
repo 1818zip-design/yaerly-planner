@@ -17,7 +17,7 @@ function pad(n: number) {
   return String(n).padStart(2, '0')
 }
 
-const HABIT_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#ef4444', '#f97316']
+const HABIT_COLORS = ['#5C7A6B', '#8B9EC7', '#C4956A', '#B07AA1', '#7BA3A3', '#A1887F', '#82A47D', '#C78B8B']
 
 export default function Habits() {
   const [year] = useState(() => parseInt(TODAY.slice(0, 4)))
@@ -143,11 +143,11 @@ export default function Habits() {
   const DAYS_LABEL = ['日', '一', '二', '三', '四', '五', '六']
 
   const activeIndex = definitions.findIndex(d => d.id === activeHabitId)
-  const activeColor = activeIndex >= 0 ? getColor(activeIndex) : '#22c55e'
+  const activeColor = activeIndex >= 0 ? getColor(activeIndex) : '#5C7A6B'
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80dvh', color: '#999' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80dvh', color: '#AEAEB2' }}>
         載入中...
       </div>
     )
@@ -155,7 +155,7 @@ export default function Habits() {
 
   return (
     <div style={{ padding: '24px 16px', maxWidth: '480px', margin: '0 auto' }}>
-      <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#1a1a1a', margin: '0 0 24px' }}>
+      <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#1C1C1E', margin: '0 0 24px' }}>
         習慣追蹤
       </h1>
 
@@ -167,9 +167,9 @@ export default function Habits() {
           onKeyDown={e => { if (e.key === 'Enter') addHabit() }}
           placeholder="新增習慣..."
           style={{
-            flex: 1, padding: '10px 12px', backgroundColor: '#f7f7f8',
-            border: '1px solid #e5e5e5', borderRadius: '10px',
-            color: '#1a1a1a', fontSize: '14px', outline: 'none',
+            flex: 1, padding: '10px 12px', backgroundColor: 'rgba(118,118,128,0.12)',
+            border: 'none', borderRadius: '10px',
+            color: '#1C1C1E', fontSize: '14px', outline: 'none',
           }}
         />
         <button
@@ -177,8 +177,8 @@ export default function Habits() {
           disabled={!newHabitName.trim()}
           style={{
             padding: '10px 16px', borderRadius: '10px', border: 'none',
-            backgroundColor: newHabitName.trim() ? '#7c3aed' : '#e5e5e5',
-            color: newHabitName.trim() ? '#fff' : '#999',
+            backgroundColor: newHabitName.trim() ? '#8B9EC7' : 'rgba(118,118,128,0.12)',
+            color: newHabitName.trim() ? '#fff' : '#AEAEB2',
             cursor: newHabitName.trim() ? 'pointer' : 'not-allowed',
             display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', fontWeight: '600',
           }}
@@ -188,26 +188,25 @@ export default function Habits() {
       </div>
 
       {definitions.length === 0 ? (
-        <div style={{ textAlign: 'center', color: '#bbb', paddingTop: '40px', fontSize: '14px' }}>
+        <div style={{ textAlign: 'center', color: '#AEAEB2', paddingTop: '40px', fontSize: '14px' }}>
           還沒有習慣，新增一個吧
         </div>
       ) : (
         <>
           {/* Today's habits */}
           <div style={{ marginBottom: '28px' }}>
-            <p style={{ fontSize: '12px', color: '#999', margin: '0 0 12px' }}>今日打卡</p>
+            <p style={{ fontSize: '12px', color: '#6C6C70', margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>今日打卡</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {definitions.map((def, i) => {
+              {definitions.map((def) => {
                 const done = isCompletedToday(def.id)
-                const color = getColor(i)
                 return (
                   <div
                     key={def.id}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '12px',
                       padding: '14px 16px', borderRadius: '14px',
-                      border: `1.5px solid ${done ? color + '55' : '#e5e5e5'}`,
-                      backgroundColor: done ? color + '08' : '#f7f7f8',
+                      backgroundColor: done ? '#5C7A6B0D' : '#FFFFFF',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
                     }}
                   >
                     <button
@@ -218,17 +217,17 @@ export default function Habits() {
                       }}
                     >
                       {done ? (
-                        <CheckCircle size={22} color={color} />
+                        <CheckCircle size={22} color="#5C7A6B" />
                       ) : (
-                        <Circle size={22} color="#ccc" />
+                        <Circle size={22} color="#AEAEB2" />
                       )}
                     </button>
-                    <span style={{ fontSize: '14px', fontWeight: '500', color: done ? color : '#555', flex: 1 }}>
+                    <span style={{ fontSize: '14px', fontWeight: '500', color: done ? '#5C7A6B' : '#1C1C1E', flex: 1 }}>
                       {def.name}
                     </span>
                     <button
                       onClick={() => deleteHabit(def.id)}
-                      style={{ background: 'none', border: 'none', color: '#ddd', cursor: 'pointer', padding: '2px' }}
+                      style={{ background: 'none', border: 'none', color: '#AEAEB2', cursor: 'pointer', padding: '2px' }}
                     >
                       <Trash2 size={14} />
                     </button>
@@ -240,7 +239,7 @@ export default function Habits() {
 
           {/* Streak & Rate stats */}
           <div style={{ marginBottom: '28px' }}>
-            <p style={{ fontSize: '12px', color: '#999', margin: '0 0 12px' }}>本月統計</p>
+            <p style={{ fontSize: '12px', color: '#6C6C70', margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>本月統計</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {definitions.map((def, i) => {
                 const streak = calcStreak(def.id)
@@ -251,20 +250,20 @@ export default function Habits() {
                     key={def.id}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '12px',
-                      padding: '12px 16px', backgroundColor: '#f7f7f8',
-                      borderRadius: '12px', border: '1px solid #ebebeb',
+                      padding: '12px 16px', backgroundColor: '#FFFFFF',
+                      borderRadius: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
                     }}
                   >
                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
-                    <span style={{ fontSize: '13px', color: '#666', flex: 1 }}>{def.name}</span>
+                    <span style={{ fontSize: '13px', color: '#6C6C70', flex: 1 }}>{def.name}</span>
                     <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                       <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '16px', fontWeight: '700', color }}>{streak}</div>
-                        <div style={{ fontSize: '9px', color: '#999' }}>連續天</div>
+                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#1C1C1E' }}>{streak}</div>
+                        <div style={{ fontSize: '9px', color: '#AEAEB2' }}>連續天</div>
                       </div>
                       <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '16px', fontWeight: '700', color }}>{rate}%</div>
-                        <div style={{ fontSize: '9px', color: '#999' }}>完成率</div>
+                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#1C1C1E' }}>{rate}%</div>
+                        <div style={{ fontSize: '9px', color: '#AEAEB2' }}>完成率</div>
                       </div>
                     </div>
                   </div>
@@ -276,18 +275,18 @@ export default function Habits() {
           {/* Heatmap Calendar */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <p style={{ fontSize: '12px', color: '#999', margin: 0 }}>月曆熱圖</p>
+              <p style={{ fontSize: '12px', color: '#6C6C70', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>月曆熱圖</p>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {definitions.map((def, i) => (
+                {definitions.map((def) => (
                   <button
                     key={def.id}
                     onClick={() => setActiveHabitId(def.id)}
                     style={{
                       padding: '4px 10px', borderRadius: '20px',
-                      border: `1px solid ${activeHabitId === def.id ? getColor(i) : '#e5e5e5'}`,
-                      backgroundColor: activeHabitId === def.id ? getColor(i) + '15' : 'transparent',
-                      color: activeHabitId === def.id ? getColor(i) : '#999',
-                      fontSize: '11px', cursor: 'pointer',
+                      border: 'none',
+                      backgroundColor: activeHabitId === def.id ? '#8B9EC7' : 'rgba(118,118,128,0.12)',
+                      color: activeHabitId === def.id ? '#FFFFFF' : '#6C6C70',
+                      fontSize: '11px', cursor: 'pointer', fontWeight: activeHabitId === def.id ? '600' : '400',
                     }}
                   >
                     {def.name.length > 4 ? def.name.slice(0, 4) + '…' : def.name}
@@ -296,35 +295,40 @@ export default function Habits() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
-              {DAYS_LABEL.map(d => (
-                <div key={d} style={{ textAlign: 'center', fontSize: '10px', color: '#999', paddingBottom: '4px' }}>
-                  {d}
-                </div>
-              ))}
-              {calendarCells.map((day, i) => {
-                if (day === null) return <div key={`empty-${i}`} />
-                const dateStr = `${year}-${pad(month + 1)}-${pad(day)}`
-                const done = activeHabitId
-                  ? logs.some(l => l.habit_id === activeHabitId && l.date === dateStr && l.completed)
-                  : false
-                const isToday = dateStr === TODAY
-                return (
-                  <div
-                    key={day}
-                    style={{
-                      aspectRatio: '1', borderRadius: '6px',
-                      backgroundColor: done ? activeColor + '30' : '#f7f7f8',
-                      border: isToday ? `1.5px solid ${activeColor}` : '1px solid transparent',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '11px', color: done ? activeColor : '#bbb',
-                      fontWeight: isToday ? '700' : '400',
-                    }}
-                  >
-                    {day}
+            <div style={{
+              backgroundColor: '#FFFFFF', borderRadius: '14px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)', padding: '16px',
+            }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+                {DAYS_LABEL.map(d => (
+                  <div key={d} style={{ textAlign: 'center', fontSize: '10px', color: '#AEAEB2', paddingBottom: '4px', fontWeight: '500' }}>
+                    {d}
                   </div>
-                )
-              })}
+                ))}
+                {calendarCells.map((day, i) => {
+                  if (day === null) return <div key={`empty-${i}`} />
+                  const dateStr = `${year}-${pad(month + 1)}-${pad(day)}`
+                  const done = activeHabitId
+                    ? logs.some(l => l.habit_id === activeHabitId && l.date === dateStr && l.completed)
+                    : false
+                  const isToday = dateStr === TODAY
+                  return (
+                    <div
+                      key={day}
+                      style={{
+                        aspectRatio: '1', borderRadius: '8px',
+                        backgroundColor: done ? activeColor + '30' : '#F2F2F7',
+                        border: isToday ? `2px solid ${activeColor}` : '2px solid transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '11px', color: done ? activeColor : '#AEAEB2',
+                        fontWeight: isToday ? '700' : '400',
+                      }}
+                    >
+                      {day}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </>
