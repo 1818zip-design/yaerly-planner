@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(npx vite:*)",
+      "Bash(npm run:*)",
+      "Bash(curl:*)",
+      "Bash(APIKEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ocnp5ZGRyYmxzY2J6dHNtd2poIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzMjc1NzIsImV4cCI6MjA4OTkwMzU3Mn0.fy26-gjBLAtmKHut2T8KK5xRxfK56LeWpG-7LVOh62I\")",
+      "Bash(curl -s -X DELETE \"https://ohrzyddrblscbztsmwjh.supabase.co/rest/v1/goals?title=in.\\(test,test2\\)\" -H \"apikey: $APIKEY\" -H \"Authorization: Bearer $APIKEY\")",
+      "Bash(npm install:*)",
+      "Bash(npx tsx:*)",
+      "Bash(node:*)"
+    ]
+  }
+}
