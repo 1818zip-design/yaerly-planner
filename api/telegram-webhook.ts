@@ -874,6 +874,20 @@ async function handleDirectCommand(chatId: number, text: string): Promise<string
     return '❓ 未知指令，輸入 /help 查看可用指令'
   }
 
+  // --- Credit card SMS parsing ---
+  const cardMatch = trimmed.match(/您於(\d{1,2})\/(\d{1,2}).*?刷([\d,]+)元/)
+  if (cardMatch) {
+    const year = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' }).slice(0, 4)
+    const month = cardMatch[1].padStart(2, '0')
+    const day = cardMatch[2].padStart(2, '0')
+    const date = `${year}-${month}-${day}`
+    const amount = parseInt(cardMatch[3].replace(/,/g, ''))
+    const result = await addExpense(date, '永豐刷卡', amount, '其他', trimmed.slice(0, 100))
+    if (result.startsWith('寫入失敗')) return `❌ ${result}`
+    const formatted = amount.toLocaleString()
+    return `幫你記了 ${parseInt(month)}/${parseInt(day)} 刷卡 ${formatted} 元，分類先設為其他，要改再告訴我`
+  }
+
   // Not a command → return null to signal AI handling
   return null
 }
