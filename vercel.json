@@ -5,6 +5,9 @@
     },
     "api/daily-reminder.ts": {
       "maxDuration": 30
+    },
+    "api/monthly-summary.ts": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
@@ -14,6 +17,10 @@
     {
       "path": "/api/daily-reminder",
       "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/monthly-summary",
+      "schedule": "0 0 1 * *"
     }
   ]
 }

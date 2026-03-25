@@ -7,6 +7,7 @@ const navItems = [
   { path: '/habits', label: '習慣', icon: '◆' },
   { path: '/mood', label: '日記+心情', icon: '✎' },
   { path: '/expenses', label: '記帳', icon: '¥' },
+  { path: '/summary', label: '總覽', icon: '▦' },
 ];
 
 export default function BottomNav() {

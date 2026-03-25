@@ -6,6 +6,7 @@ import Tasks from './pages/Tasks'
 import Habits from './pages/Habits'
 import Expenses from './pages/Expenses'
 import JournalMood from './pages/Mood'
+import Summary from './pages/Summary'
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
           <Route path="/mood" element={<JournalMood />} />
           <Route path="/journal" element={<Navigate to="/mood" replace />} />
           <Route path="/expenses" element={<Expenses />} />
+          <Route path="/summary" element={<Summary />} />
         </Route>
       </Routes>
     </BrowserRouter>
