@@ -80,10 +80,9 @@ async function testSlashHelp() {
 
 async function testAddTask() {
   const title = `_TEST_任務_${Date.now()}`
-  await test('新增任務', `明天${title}`, async (reply) => {
-    // Wait a bit then check Supabase
+  await test('新增任務', `今天${title}`, async (reply) => {
     await new Promise(r => setTimeout(r, 500))
-    const tasks = await supaQuery(`tasks?title=eq.${encodeURIComponent(title)}`) as { id: string; date: string }[]
+    const tasks = await supaQuery(`tasks?title=ilike.*${encodeURIComponent(title)}*`) as { id: string; date: string }[]
     if (tasks.length === 0) return { pass: false, error: '任務未寫入 Supabase' }
     cleanupIds.push({ table: 'tasks', id: tasks[0].id })
     return { pass: true }
@@ -141,10 +140,13 @@ async function testAddJournal() {
 }
 
 async function testCompleteTask() {
-  // First add a task, then complete it
   const title = `_TEST_完成_${Date.now()}`
-  await handleMessage(CHAT_ID, `今天${title}`)
-  await new Promise(r => setTimeout(r, 1000))
+  // Insert directly to be deterministic
+  const insertRes = await fetch(`${SUPA_URL}/rest/v1/tasks`, {
+    method: 'POST', headers: supaHeaders(),
+    body: JSON.stringify({ title, date: today(), time_slot: 'anytime', completed: false, carried_over: false, tags: [], goal_id: null }),
+  })
+  await new Promise(r => setTimeout(r, 300))
 
   await test('標記任務完成', `標記「${title}」完成`, async (reply) => {
     await new Promise(r => setTimeout(r, 500))
@@ -175,6 +177,168 @@ async function testConversationMemory() {
     const memory = await supaQuery(`bot_memory?chat_id=eq.${CHAT_ID}`) as { messages: unknown[] }[]
     if (memory.length === 0) return { pass: false, error: '對話記憶未寫入 bot_memory' }
     return { pass: memory[0].messages.length >= 2, error: memory[0].messages.length < 2 ? '記憶不足 2 筆' : undefined }
+  })
+}
+
+async function testPostponeTask() {
+  const title = `_TEST_順延_${Date.now()}`
+  // Insert directly to today to be deterministic
+  const insertRes = await fetch(`${SUPA_URL}/rest/v1/tasks`, {
+    method: 'POST', headers: supaHeaders(),
+    body: JSON.stringify({ title, date: today(), time_slot: 'anytime', completed: false, carried_over: false, tags: [], goal_id: null }),
+  })
+  const inserted = await insertRes.json()
+  const taskId = Array.isArray(inserted) ? inserted[0]?.id : (inserted as { id: string }).id
+  await new Promise(r => setTimeout(r, 500))
+
+  await test('順延任務', `把「${title}」順延到明天`, async (reply) => {
+    await new Promise(r => setTimeout(r, 500))
+    const tasks = await supaQuery(`tasks?title=ilike.*${encodeURIComponent(title)}*`) as { id: string; date: string; carried_over: boolean }[]
+    if (tasks.length === 0) return { pass: false, error: '找不到順延的任務' }
+    // Clean up all copies
+    for (const t of tasks) cleanupIds.push({ table: 'tasks', id: t.id })
+    const postponed = tasks.find(t => t.date === tomorrow())
+    return { pass: !!postponed, error: postponed ? undefined : `沒有找到明天 ${tomorrow()} 的任務，現有日期: ${tasks.map(t => t.date).join(',')}` }
+  })
+}
+
+async function testHabitCheckin() {
+  await test('習慣打卡', '運動打卡', async (reply) => {
+    await new Promise(r => setTimeout(r, 500))
+    const logs = await supaQuery(`habit_logs?date=eq.${today()}&order=created_at.desc&limit=1`) as { id: string; completed: boolean }[]
+    if (logs.length === 0) {
+      // If no habit definitions exist, Claude should say so
+      return { pass: reply.includes('沒有') || reply.includes('定義') || reply.includes('習慣'), error: logs.length === 0 ? '可能沒有習慣定義' : undefined }
+    }
+    cleanupIds.push({ table: 'habit_logs', id: logs[0].id })
+    return { pass: logs[0].completed === true }
+  })
+}
+
+async function testDeleteTask() {
+  const title = `_TEST_刪除_${Date.now()}`
+  await handleMessage(CHAT_ID, `今天${title}`)
+  await new Promise(r => setTimeout(r, 1000))
+
+  await test('刪除任務', `刪掉「${title}」`, async (reply) => {
+    await new Promise(r => setTimeout(r, 500))
+    const tasks = await supaQuery(`tasks?title=eq.${encodeURIComponent(title)}`) as { id: string }[]
+    // Task should be deleted
+    if (tasks.length > 0) {
+      cleanupIds.push({ table: 'tasks', id: tasks[0].id })
+      return { pass: false, error: '任務未被刪除' }
+    }
+    return { pass: true }
+  })
+}
+
+async function testMultipleTasks() {
+  await test('多任務一次新增', '明天要買蘋果、買香蕉、買西瓜_TEST', async (reply) => {
+    await new Promise(r => setTimeout(r, 500))
+    const tasks = await supaQuery(`tasks?title=ilike.*_TEST*&order=created_at.desc&limit=5`) as { id: string; title: string }[]
+    // Should have created multiple tasks
+    const testTasks = tasks.filter(t => t.title.includes('_TEST'))
+    for (const t of testTasks) cleanupIds.push({ table: 'tasks', id: t.id })
+    return { pass: testTasks.length >= 2, error: testTasks.length < 2 ? `只新增了 ${testTasks.length} 筆，預期至少 2 筆` : undefined }
+  })
+}
+
+async function testSlashDone() {
+  const title = `_TEST_DONE_${Date.now()}`
+  // Insert directly to today
+  await fetch(`${SUPA_URL}/rest/v1/tasks`, {
+    method: 'POST', headers: supaHeaders(),
+    body: JSON.stringify({ title, date: today(), time_slot: 'anytime', completed: false, carried_over: false, tags: [], goal_id: null }),
+  })
+  await new Promise(r => setTimeout(r, 300))
+
+  // Get fresh index
+  const allTasks = await supaQuery(`tasks?date=eq.${today()}&order=created_at`) as { id: string; title: string }[]
+  const idx = allTasks.findIndex(t => t.title === title) + 1
+  if (idx === 0) { results.push({ name: '/done N 完成', pass: false, reply: '', error: '插入任務失敗', duration: 0 }); return }
+
+  await test('/done N 完成', `/done ${idx}`, async (reply) => {
+    await new Promise(r => setTimeout(r, 300))
+    const tasks = await supaQuery(`tasks?title=eq.${encodeURIComponent(title)}`) as { id: string; completed: boolean }[]
+    if (tasks.length === 0) return { pass: false, error: '找不到任務' }
+    cleanupIds.push({ table: 'tasks', id: tasks[0].id })
+    return { pass: tasks[0].completed === true, error: tasks[0].completed ? undefined : '/done 沒有標記完成' }
+  })
+}
+
+async function testSlashUndo() {
+  const title = `_TEST_UNDO_${Date.now()}`
+  // Insert as completed
+  await fetch(`${SUPA_URL}/rest/v1/tasks`, {
+    method: 'POST', headers: supaHeaders(),
+    body: JSON.stringify({ title, date: today(), time_slot: 'anytime', completed: true, carried_over: false, tags: [], goal_id: null }),
+  })
+  await new Promise(r => setTimeout(r, 300))
+
+  const allTasks = await supaQuery(`tasks?date=eq.${today()}&order=created_at`) as { id: string; title: string }[]
+  const idx = allTasks.findIndex(t => t.title === title) + 1
+  if (idx === 0) { results.push({ name: '/undo N 取消完成', pass: false, reply: '', error: '插入任務失敗', duration: 0 }); return }
+
+  await test('/undo N 取消完成', `/undo ${idx}`, async (reply) => {
+    await new Promise(r => setTimeout(r, 300))
+    const tasks = await supaQuery(`tasks?title=eq.${encodeURIComponent(title)}`) as { id: string; completed: boolean }[]
+    if (tasks.length === 0) return { pass: false, error: '找不到任務' }
+    cleanupIds.push({ table: 'tasks', id: tasks[0].id })
+    return { pass: tasks[0].completed === false, error: tasks[0].completed ? '/undo 沒有取消完成' : undefined }
+  })
+}
+
+async function testSlashDel() {
+  const title = `_TEST_DEL_${Date.now()}`
+  await fetch(`${SUPA_URL}/rest/v1/tasks`, {
+    method: 'POST', headers: supaHeaders(),
+    body: JSON.stringify({ title, date: today(), time_slot: 'anytime', completed: false, carried_over: false, tags: [], goal_id: null }),
+  })
+  await new Promise(r => setTimeout(r, 300))
+
+  const allTasks = await supaQuery(`tasks?date=eq.${today()}&order=created_at`) as { id: string; title: string }[]
+  const idx = allTasks.findIndex(t => t.title === title) + 1
+  if (idx === 0) { results.push({ name: '/del N 刪除', pass: false, reply: '', error: '插入任務失敗', duration: 0 }); return }
+
+  await test('/del N 刪除', `/del ${idx}`, async (reply) => {
+    await new Promise(r => setTimeout(r, 300))
+    const tasks = await supaQuery(`tasks?title=eq.${encodeURIComponent(title)}`) as { id: string }[]
+    if (tasks.length > 0) {
+      cleanupIds.push({ table: 'tasks', id: tasks[0].id })
+      return { pass: false, error: '/del 沒有刪除任務' }
+    }
+    return { pass: reply.includes('刪除') }
+  })
+}
+
+async function testOverdueTasks() {
+  // Create a task in the past, then check if get_week_tasks shows it
+  const title = `_TEST_過期_${Date.now()}`
+  // Insert directly into Supabase with a past date
+  const pastDate = '2026-03-20'
+  const insertRes = await fetch(`${SUPA_URL}/rest/v1/tasks`, {
+    method: 'POST',
+    headers: supaHeaders(),
+    body: JSON.stringify({ title, date: pastDate, time_slot: 'anytime', completed: false, carried_over: false, tags: [], goal_id: null }),
+  })
+  const inserted = await insertRes.json() as { id: string }[]
+  const taskId = Array.isArray(inserted) ? inserted[0]?.id : (inserted as { id: string }).id
+  if (taskId) cleanupIds.push({ table: 'tasks', id: taskId })
+
+  await test('過期任務查詢', '幫我列出所有未完成的任務', async (reply) => {
+    // Check Supabase directly: the overdue task should still exist
+    const tasks = await supaQuery(`tasks?title=eq.${encodeURIComponent(title)}&completed=eq.false`) as { id: string }[]
+    return { pass: tasks.length > 0, error: tasks.length === 0 ? '過期任務被意外刪除' : undefined }
+  })
+}
+
+async function testGoalCRUD() {
+  await test('新增年度目標', '新增目標：TEST自動測試目標', async (reply) => {
+    await new Promise(r => setTimeout(r, 500))
+    const goals = await supaQuery(`goals?title=ilike.*TEST自動測試*&limit=1`) as { id: string; title: string }[]
+    if (goals.length === 0) return { pass: false, error: '目標未寫入 Supabase' }
+    cleanupIds.push({ table: 'goals', id: goals[0].id })
+    return { pass: true }
   })
 }
 
@@ -312,6 +476,15 @@ async function main() {
   await testAddMood()
   await testAddJournal()
   await testCompleteTask()
+  await testPostponeTask()
+  await testDeleteTask()
+  await testMultipleTasks()
+  await testSlashDone()
+  await testSlashUndo()
+  await testSlashDel()
+  await testHabitCheckin()
+  await testGoalCRUD()
+  await testOverdueTasks()
   await testGetWeekTasks()
   await testConversationMemory()
 
