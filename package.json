@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "reminder": "tsx api/daily-reminder.ts",
-    "bot:test": "tsx api/telegram-webhook.ts"
+    "bot:test": "tsx api/telegram-webhook.ts",
+    "test:bot": "tsx scripts/test-bot.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
