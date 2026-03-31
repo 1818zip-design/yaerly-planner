@@ -26,10 +26,20 @@
 import Anthropic from '@anthropic-ai/sdk'
 
 // --- Types ---
+interface TelegramPhoto {
+  file_id: string
+  file_unique_id: string
+  width: number
+  height: number
+  file_size?: number
+}
+
 interface TelegramUpdate {
   message?: {
     chat: { id: number }
     text?: string
+    photo?: TelegramPhoto[]
+    caption?: string
   }
 }
 
@@ -211,6 +221,101 @@ async function createCalendarEvent(input: CalendarEventInput): Promise<string> {
 
   const created = await res.json() as { htmlLink: string }
   return `已新增行程「${title}」到 Google Calendar（${date} ${start_time}~${endTime}）\n${created.htmlLink}`
+}
+
+// --- Photo / Calendar screenshot parsing ---
+interface ParsedEvent {
+  date: string
+  time: string
+  title: string
+  location: string
+}
+
+async function downloadTelegramPhoto(fileId: string): Promise<string | null> {
+  const token = env('TELEGRAM_BOT_TOKEN')
+  // Get file path
+  const fileRes = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`)
+  if (!fileRes.ok) return null
+  const fileData = await fileRes.json() as { result: { file_path: string } }
+  const filePath = fileData.result.file_path
+
+  // Download file
+  const downloadRes = await fetch(`https://api.telegram.org/file/bot${token}/${filePath}`)
+  if (!downloadRes.ok) return null
+  const buffer = await downloadRes.arrayBuffer()
+  return Buffer.from(buffer).toString('base64')
+}
+
+async function parseCalendarScreenshot(base64Image: string): Promise<ParsedEvent[]> {
+  const apiKey = env('ANTHROPIC_API_KEY')
+  if (!apiKey) return []
+
+  const client = new Anthropic({ apiKey })
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 1024,
+    messages: [{
+      role: 'user',
+      content: [
+        {
+          type: 'image',
+          source: { type: 'base64', media_type: 'image/jpeg', data: base64Image },
+        },
+        {
+          type: 'text',
+          text: `這是一張行事曆截圖，請解析出所有行程資訊。
+回傳 JSON 陣列，格式：
+[{ "date": "YYYY-MM-DD", "time": "HH:MM", "title": "事項名稱", "location": "地點或空字串" }]
+
+規則：
+- 年份用 ${getTodayTaipei().slice(0, 4)} 年
+- 時間用 24 小時制
+- 只回傳 JSON，不要其他文字
+- 如果看不出行程就回傳 []`,
+        },
+      ],
+    }],
+  })
+
+  const text = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+    .map(b => b.text).join('')
+
+  try {
+    // Extract JSON from response (might have markdown code fences)
+    const jsonMatch = text.match(/\[[\s\S]*\]/)
+    if (!jsonMatch) return []
+    return JSON.parse(jsonMatch[0]) as ParsedEvent[]
+  } catch {
+    console.error('[parseCalendarScreenshot] JSON parse failed:', text)
+    return []
+  }
+}
+
+async function handlePhotoMessage(chatId: number, photos: TelegramPhoto[], caption?: string): Promise<string> {
+  // Use the largest photo (last in array)
+  const photo = photos[photos.length - 1]
+  const base64 = await downloadTelegramPhoto(photo.file_id)
+  if (!base64) return '❌ 無法下載圖片'
+
+  const events = await parseCalendarScreenshot(base64)
+  if (events.length === 0) return '看不出行程資訊，請傳清楚一點的截圖'
+
+  // Format confirmation message
+  const lines = events.map(e => `• ${e.date} ${e.time} ${e.title}${e.location ? ` (${e.location})` : ''}`)
+  const confirmMsg = [
+    `我看到以下行程：`,
+    ...lines,
+    '',
+    '要幫你全部加到 Google Calendar 嗎？',
+  ].join('\n')
+
+  // Store parsed events in memory so "好" can trigger creation
+  const eventsJson = JSON.stringify(events)
+  await pushHistory(chatId, 'user', `[圖片] 行事曆截圖，解析出 ${events.length} 個行程`)
+  await pushHistory(chatId, 'assistant', `${confirmMsg}\n\n[PENDING_EVENTS:${eventsJson}]`)
+
+  return confirmMsg
 }
 
 // --- Supabase task operations ---
@@ -1019,12 +1124,63 @@ async function handleDirectCommand(chatId: number, text: string): Promise<string
   return null
 }
 
+// --- Check for pending calendar events from screenshot ---
+async function handlePendingEvents(chatId: number, text: string): Promise<string | null> {
+  const trimmed = text.trim().toLowerCase()
+  const isConfirm = ['好', '可以', 'ok', '是', '對', '就這樣', '加', '幫我加'].some(w => trimmed.includes(w))
+  if (!isConfirm) return null
+
+  const history = await getHistory(chatId)
+  // Find the last assistant message with pending events
+  for (let i = history.length - 1; i >= 0; i--) {
+    const msg = history[i]
+    if (msg.role !== 'assistant') continue
+    const match = msg.content.match(/\[PENDING_EVENTS:(.+?)\]/)
+    if (!match) continue
+
+    try {
+      const events: ParsedEvent[] = JSON.parse(match[1])
+      let added = 0
+      const errors: string[] = []
+      for (const e of events) {
+        const result = await createCalendarEvent({
+          title: e.title,
+          date: e.date,
+          start_time: e.time,
+          location: e.location || undefined,
+        })
+        if (result.includes('❌')) {
+          errors.push(`${e.title}: ${result}`)
+        } else {
+          added++
+        }
+      }
+
+      // Clear pending events from history
+      await pushHistory(chatId, 'user', text)
+      await pushHistory(chatId, 'assistant', `已加 ${added} 個行程到 Google Calendar`)
+
+      if (errors.length > 0) {
+        return `已加 ${added} 個行程，${errors.length} 個失敗：\n${errors.join('\n')}`
+      }
+      return `已幫你加了 ${added} 個行程到 Google Calendar`
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
 // --- Main handler ---
 async function handleMessage(chatId: number, text: string): Promise<string> {
   const allowedChat = env('TELEGRAM_CHAT_ID')
   if (allowedChat && String(chatId) !== allowedChat) {
     return '⛔ 未授權的使用者'
   }
+
+  // Check for pending calendar events confirmation
+  const pendingResult = await handlePendingEvents(chatId, text)
+  if (pendingResult !== null) return pendingResult
 
   // Try direct commands first
   const directResult = await handleDirectCommand(chatId, text)
@@ -1045,8 +1201,26 @@ export default async function handler(req: any, res: any) {
     const update: TelegramUpdate = req.body
     const chatId = update.message?.chat?.id
     const text = update.message?.text
+    const photos = update.message?.photo
+    const caption = update.message?.caption
 
-    if (!chatId || !text) {
+    if (!chatId) {
+      return res.status(200).json({ ok: true, skip: 'no chat id' })
+    }
+
+    // Handle photo messages
+    if (photos && photos.length > 0) {
+      const allowedChat = env('TELEGRAM_CHAT_ID')
+      if (allowedChat && String(chatId) !== allowedChat) {
+        await sendTelegram(chatId, '⛔ 未授權的使用者')
+        return res.status(200).json({ ok: true })
+      }
+      const reply = await handlePhotoMessage(chatId, photos, caption)
+      await sendTelegram(chatId, reply)
+      return res.status(200).json({ ok: true })
+    }
+
+    if (!text) {
       return res.status(200).json({ ok: true, skip: 'no text message' })
     }
 
