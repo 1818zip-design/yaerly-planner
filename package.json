@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "reminder": "tsx api/daily-reminder.ts",
     "bot:test": "tsx api/telegram-webhook.ts",
-    "test:bot": "tsx scripts/test-bot.ts"
+    "test:bot": "tsx scripts/test-bot.ts",
+    "simulate": "tsx scripts/simulate-user.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",

@@ -2,7 +2,12 @@ export function env(key: string): string {
   return process.env[key] || ''
 }
 
+// Overridable for testing
+let _mockToday: string | null = null
+export function setMockToday(date: string | null) { _mockToday = date }
+
 export function getTodayTaipei(): string {
+  if (_mockToday) return _mockToday
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' })
 }
 
