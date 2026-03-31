@@ -13,15 +13,15 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk'
-import { env, getTodayTaipei } from './lib/helpers.js'
-import { type TelegramUpdate, sendTelegram } from './lib/telegram.js'
-import { getHistory, pushHistory } from './lib/memory.js'
-import { createCalendarEvent } from './lib/google-calendar.js'
-import { fetchTasksByDate, updateTask, addExpense, findRecentDuplicateExpense } from './lib/supabase-ops.js'
-import { CLAUDE_TOOLS, executeTool } from './lib/bot-tools.js'
-import { getSystemPrompt } from './lib/bot-prompt.js'
-import { type ParsedEvent, handlePhotoMessage } from './lib/photo-parser.js'
-import { getState, setState, clearState, checkMissing, getStepPrompt, processStepReply, type CheckinState } from './lib/checkin-state.js'
+import { env, getTodayTaipei } from '../bot-lib/helpers.js'
+import { type TelegramUpdate, sendTelegram } from '../bot-lib/telegram.js'
+import { getHistory, pushHistory } from '../bot-lib/memory.js'
+import { createCalendarEvent } from '../bot-lib/google-calendar.js'
+import { fetchTasksByDate, updateTask, addExpense, findRecentDuplicateExpense } from '../bot-lib/supabase-ops.js'
+import { CLAUDE_TOOLS, executeTool } from '../bot-lib/bot-tools.js'
+import { getSystemPrompt } from '../bot-lib/bot-prompt.js'
+import { type ParsedEvent, handlePhotoMessage } from '../bot-lib/photo-parser.js'
+import { getState, setState, clearState, checkMissing, getStepPrompt, processStepReply, type CheckinState } from '../bot-lib/checkin-state.js'
 
 // --- Format helpers ---
 function formatTaskList(tasks: { id: string; title: string; completed: boolean; carried_over: boolean }[], date: string): string {
