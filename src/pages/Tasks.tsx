@@ -239,39 +239,32 @@ export default function Tasks() {
     fetchGoals()
   }, [])
 
-  // Auto carry-over: move yesterday's incomplete tasks to today, then delete originals
+  // Auto carry-over: move ALL past incomplete tasks to today, then delete originals
   useEffect(() => {
     if (carryOverChecked) return
     const today = getToday()
     if (currentDate !== today) return
 
     async function carryOver() {
-      const yesterday = formatDate(addDays(new Date(today + 'T00:00:00'), -1))
-
-      // Fetch yesterday's incomplete tasks (skip ones already carried over from earlier)
-      const { data: yesterdayTasks } = await supabase
+      // Fetch ALL incomplete tasks from any past date (before today)
+      const { data: pastTasks } = await supabase
         .from('tasks').select('*')
-        .eq('date', yesterday)
+        .lt('date', today)
         .eq('completed', false)
 
-      if (!yesterdayTasks || yesterdayTasks.length === 0) {
+      if (!pastTasks || pastTasks.length === 0) {
         setCarryOverChecked(true)
         return
       }
 
-      // Check what's already been carried to today
-      const { data: todayCarried } = await supabase
-        .from('tasks').select('original_date, title')
+      // Check what titles already exist today to avoid duplicates
+      const { data: todayTasks } = await supabase
+        .from('tasks').select('title')
         .eq('date', today)
-        .eq('carried_over', true)
 
-      const alreadyCarried = new Set(
-        (todayCarried ?? []).map(t => `${t.original_date}|${t.title}`)
-      )
+      const todayTitles = new Set((todayTasks ?? []).map(t => t.title))
 
-      const toCarry = yesterdayTasks.filter(
-        t => !alreadyCarried.has(`${yesterday}|${t.title}`)
-      )
+      const toCarry = pastTasks.filter(t => !todayTitles.has(t.title))
 
       if (toCarry.length > 0) {
         // Create new tasks for today
@@ -279,11 +272,11 @@ export default function Tasks() {
           title: t.title, date: today, time_slot: t.time_slot,
           completed: false, goal_id: t.goal_id, tags: t.tags,
           carried_over: true,
-          original_date: t.original_date ?? yesterday,
+          original_date: t.original_date ?? t.date,
         }))
         const { data: created } = await supabase.from('tasks').insert(inserts).select()
 
-        // Delete the original tasks from yesterday
+        // Delete the originals
         const idsToDelete = toCarry.map(t => t.id)
         await supabase.from('tasks').delete().in('id', idsToDelete)
 

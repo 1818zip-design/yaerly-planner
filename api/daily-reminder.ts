@@ -1,24 +1,13 @@
 /**
  * Daily Reminder - Telegram Bot
  *
- * Sends a list of today's incomplete tasks via Telegram at 10 PM Taipei time.
+ * At 10 PM Taipei time:
+ * 1. Auto carry-over: move ALL past incomplete tasks to tomorrow
+ * 2. Send a Telegram reminder with tomorrow's task list
  *
  * Environment variables needed:
- *   SUPABASE_URL       - Supabase project URL
- *   SUPABASE_ANON_KEY  - Supabase anon key
- *   TELEGRAM_BOT_TOKEN      - Telegram Bot API token (from @BotFather)
- *   TELEGRAM_CHAT_ID        - Your Telegram chat ID (from @userinfobot)
- *
- * --- Deployment options ---
- *
- * Option A: Vercel Cron (recommended)
- *   1. Deploy this project to Vercel
- *   2. Add vercel.json with cron config (see bottom of file)
- *   3. Set env vars in Vercel dashboard
- *   The endpoint GET /api/daily-reminder will be called automatically.
- *
- * Option B: Any cron service / GitHub Actions / local crontab
- *   Run: npx tsx api/daily-reminder.ts
+ *   SUPABASE_URL, SUPABASE_ANON_KEY,
+ *   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
  */
 
 // --- Types ---
@@ -28,40 +17,49 @@ interface Task {
   completed: boolean
   date: string
   carried_over: boolean
+  original_date: string | null
+  goal_id: string | null
+  tags: string[]
+  time_slot: string
 }
 
-// --- Config (read at call time so dotenv/env injection works) ---
+// --- Config ---
 function env(key: string): string {
   return process.env[key] || ''
+}
+
+function supabaseHeaders() {
+  const key = env('SUPABASE_ANON_KEY')
+  return {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
+    'Content-Type': 'application/json',
+    Prefer: 'return=representation',
+  }
+}
+
+function supabaseUrl(path: string): string {
+  return `${env('SUPABASE_URL')}/rest/v1/${path}`
 }
 
 function getTodayTaipei(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' })
 }
 
-async function fetchIncompleteTasks(date: string): Promise<Task[]> {
-  const url = `${env('SUPABASE_URL')}/rest/v1/tasks?date=eq.${date}&completed=eq.false&order=created_at`
-  const key = env('SUPABASE_ANON_KEY')
-  const res = await fetch(url, {
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-    },
-  })
-  if (!res.ok) {
-    throw new Error(`Supabase error: ${res.status} ${await res.text()}`)
-  }
-  return res.json()
+function getTomorrowTaipei(): string {
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' })
 }
 
 async function sendTelegram(text: string): Promise<void> {
-  const url = `https://api.telegram.org/bot${env('TELEGRAM_BOT_TOKEN')}/sendMessage`
-  const res = await fetch(url, {
+  const truncated = text.length > 4000 ? text.slice(0, 4000) + '...' : text
+  const res = await fetch(`https://api.telegram.org/bot${env('TELEGRAM_BOT_TOKEN')}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       chat_id: env('TELEGRAM_CHAT_ID'),
-      text,
+      text: truncated,
       parse_mode: 'HTML',
     }),
   })
@@ -70,55 +68,109 @@ async function sendTelegram(text: string): Promise<void> {
   }
 }
 
-function buildMessage(tasks: Task[], date: string): string {
-  if (tasks.length === 0) {
-    return `✅ ${date}\n今天的任務全部完成了！`
-  }
-
-  const lines = tasks.map(t => {
-    const prefix = t.carried_over ? '↻ ' : ''
-    return `• ${prefix}${t.title}`
-  })
-
-  return [
-    `📋 今日未完成任務（${tasks.length}項）：`,
-    '',
-    ...lines,
-    '',
-    '記得完成或順延到明天！',
-  ].join('\n')
-}
-
 // --- Main logic ---
 async function main() {
   const today = getTodayTaipei()
-  console.log(`[daily-reminder] Running for ${today}`)
+  const tomorrow = getTomorrowTaipei()
+  console.log(`[daily-reminder] Running for ${today}, carry-over target: ${tomorrow}`)
 
-  const tasks = await fetchIncompleteTasks(today)
-  console.log(`[daily-reminder] Found ${tasks.length} incomplete tasks`)
+  // Step 1: Fetch ALL incomplete tasks up to today (any past date)
+  const res = await fetch(
+    supabaseUrl(`tasks?date=lte.${today}&completed=eq.false&order=date,created_at`),
+    { headers: supabaseHeaders() },
+  )
+  if (!res.ok) throw new Error(`Supabase error: ${res.status} ${await res.text()}`)
+  const incompleteTasks: Task[] = await res.json()
 
-  const message = buildMessage(tasks, today)
+  console.log(`[daily-reminder] Found ${incompleteTasks.length} incomplete tasks up to ${today}`)
+
+  // Step 2: Check what's already on tomorrow to avoid duplicates
+  const tomorrowRes = await fetch(
+    supabaseUrl(`tasks?date=eq.${tomorrow}&order=created_at`),
+    { headers: supabaseHeaders() },
+  )
+  const tomorrowTasks: Task[] = tomorrowRes.ok ? await tomorrowRes.json() : []
+  const tomorrowTitles = new Set(tomorrowTasks.map(t => t.title))
+
+  // Step 3: Carry over — create new tasks on tomorrow, delete originals
+  const toCarry = incompleteTasks.filter(t => !tomorrowTitles.has(t.title))
+  let carriedCount = 0
+
+  if (toCarry.length > 0) {
+    const inserts = toCarry.map(t => ({
+      title: t.title,
+      date: tomorrow,
+      time_slot: t.time_slot,
+      completed: false,
+      goal_id: t.goal_id,
+      tags: t.tags,
+      carried_over: true,
+      original_date: t.original_date || t.date,
+    }))
+
+    const insertRes = await fetch(supabaseUrl('tasks'), {
+      method: 'POST',
+      headers: supabaseHeaders(),
+      body: JSON.stringify(inserts),
+    })
+
+    if (insertRes.ok) {
+      carriedCount = toCarry.length
+      // Delete the originals
+      const idsToDelete = toCarry.map(t => t.id)
+      for (const id of idsToDelete) {
+        await fetch(supabaseUrl(`tasks?id=eq.${id}`), {
+          method: 'DELETE',
+          headers: supabaseHeaders(),
+        })
+      }
+      console.log(`[daily-reminder] Carried over ${carriedCount} tasks to ${tomorrow}`)
+    } else {
+      console.error('[daily-reminder] Insert failed:', await insertRes.text())
+    }
+  }
+
+  // Step 4: Fetch tomorrow's final task list for the message
+  const finalRes = await fetch(
+    supabaseUrl(`tasks?date=eq.${tomorrow}&completed=eq.false&order=created_at`),
+    { headers: supabaseHeaders() },
+  )
+  const finalTasks: Task[] = finalRes.ok ? await finalRes.json() : []
+
+  // Step 5: Build and send message
+  let message: string
+  if (finalTasks.length === 0 && carriedCount === 0) {
+    message = `✅ 今天任務全部完成了，明天目前沒有待辦！`
+  } else {
+    const lines = finalTasks.map(t => {
+      const prefix = t.carried_over ? '↻ ' : ''
+      return `• ${prefix}${t.title}`
+    })
+    const parts = [`📋 明天的任務（${finalTasks.length}項）：`, '', ...lines]
+    if (carriedCount > 0) {
+      parts.push('', `↻ 其中 ${carriedCount} 筆是從之前順延的`)
+    }
+    message = parts.join('\n')
+  }
 
   if (!env('TELEGRAM_BOT_TOKEN') || !env('TELEGRAM_CHAT_ID')) {
-    console.log('[daily-reminder] Telegram not configured, printing message:')
+    console.log('[daily-reminder] Telegram not configured:')
     console.log(message)
-    return { message, sent: false }
+    return { message, sent: false, carried: carriedCount }
   }
 
   await sendTelegram(message)
   console.log('[daily-reminder] Telegram message sent')
-  return { message, sent: true }
+  return { message, sent: true, carried: carriedCount }
 }
 
-// --- Vercel Serverless Function handler ---
+// --- Vercel handler ---
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default async function handler(req: any, res: any) {
-  // Verify cron secret if set (optional security)
   const cronSecret = process.env.CRON_SECRET
   if (cronSecret && req.headers['authorization'] !== `Bearer ${cronSecret}`) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
-
   try {
     const result = await main()
     return res.status(200).json({ ok: true, ...result })
@@ -128,9 +180,8 @@ export default async function handler(req: any, res: any) {
   }
 }
 
-// --- CLI mode: run directly with `npx tsx api/daily-reminder.ts` ---
+// --- CLI mode ---
 if (process.argv[1]?.includes('daily-reminder')) {
-  // Ensure .env is loaded
   await import('dotenv/config')
   main().then(r => {
     console.log('Done:', r)
