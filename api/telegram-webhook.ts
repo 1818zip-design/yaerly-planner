@@ -21,6 +21,7 @@ import { fetchTasksByDate, updateTask, addExpense, findRecentDuplicateExpense } 
 import { CLAUDE_TOOLS, executeTool } from './lib/bot-tools.js'
 import { getSystemPrompt } from './lib/bot-prompt.js'
 import { type ParsedEvent, handlePhotoMessage } from './lib/photo-parser.js'
+import { getState, setState, clearState, checkMissing, getStepPrompt, processStepReply, type CheckinState } from './lib/checkin-state.js'
 
 // --- Format helpers ---
 function formatTaskList(tasks: { id: string; title: string; completed: boolean; carried_over: boolean }[], date: string): string {
@@ -334,6 +335,30 @@ async function handleMessage(chatId: number, text: string): Promise<string> {
   const allowedChat = env('TELEGRAM_CHAT_ID')
   if (allowedChat && String(chatId) !== allowedChat) {
     return '⛔ 未授權的使用者'
+  }
+
+  // --- Check-in state machine ---
+  const state = await getState(chatId)
+  if (state && state.step !== 'done') {
+    // User is in check-in flow
+    if (text.trim() === '取消' || text.trim() === '結束') {
+      await clearState(chatId)
+      return '已取消 check-in'
+    }
+    return processStepReply(chatId, state, text)
+  }
+
+  // Start check-in when user says "好" after check-in reminder
+  const trimmedLower = text.trim().toLowerCase()
+  if (['好', '好的', '開始', '開始checkin', '開始 checkin', 'checkin'].includes(trimmedLower)) {
+    const today = getTodayTaipei()
+    const missing = await checkMissing(today)
+    if (missing.length === 0) {
+      return '✅ 今天都記錄了，不需要補'
+    }
+    const newState: CheckinState = { step: missing[0] as CheckinState['step'], missing, date: today }
+    await setState(chatId, newState)
+    return `開始 check-in（${missing.length} 項）\n\n${getStepPrompt(newState)}`
   }
 
   const pendingResult = await handlePendingEvents(chatId, text)
