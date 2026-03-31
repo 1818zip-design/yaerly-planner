@@ -87,6 +87,17 @@ export async function addExpense(date: string, title: string, amount: number, ca
   return `已記帳「${title}」${amount} 元（${category}）到 ${date}`
 }
 
+export async function findRecentDuplicateExpense(date: string, title: string, amount: number): Promise<boolean> {
+  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+  const res = await fetch(
+    supabaseUrl(`expenses?date=eq.${date}&title=eq.${encodeURIComponent(title)}&amount=eq.${amount}&created_at=gte.${fiveMinAgo}`),
+    { headers: supabaseHeaders() },
+  )
+  if (!res.ok) return false
+  const data = await res.json()
+  return Array.isArray(data) && data.length > 0
+}
+
 // --- Habits ---
 export async function fetchHabitDefinitions(): Promise<{ id: string; name: string }[]> {
   const res = await fetch(supabaseUrl('habit_definitions?order=created_at'), { headers: supabaseHeaders() })

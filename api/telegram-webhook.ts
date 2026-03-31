@@ -17,8 +17,7 @@ import { env, getTodayTaipei } from './lib/helpers.js'
 import { type TelegramUpdate, sendTelegram } from './lib/telegram.js'
 import { getHistory, pushHistory } from './lib/memory.js'
 import { createCalendarEvent } from './lib/google-calendar.js'
-import { fetchTasksByDate, updateTask } from './lib/supabase-ops.js'
-import { addExpense } from './lib/supabase-ops.js'
+import { fetchTasksByDate, updateTask, addExpense, findRecentDuplicateExpense } from './lib/supabase-ops.js'
 import { CLAUDE_TOOLS, executeTool } from './lib/bot-tools.js'
 import { getSystemPrompt } from './lib/bot-prompt.js'
 import { type ParsedEvent, handlePhotoMessage } from './lib/photo-parser.js'
@@ -112,6 +111,71 @@ async function chatWithClaude(chatId: number, userMessage: string): Promise<stri
   }
 }
 
+// --- Bank notification parser (uses Claude API) ---
+interface ParsedExpense {
+  date: string
+  amount: number
+  title: string
+  category: string
+  note: string
+}
+
+const BANK_PARSE_PROMPT = `你是記帳助理，從永豐銀行通知擷取消費資訊，只回傳 JSON 不說其他話。
+
+回傳格式：
+{
+  "date": "YYYY-MM-DD",
+  "amount": 台幣金額數字,
+  "title": "商店名稱",
+  "category": "餐飲/交通/治裝購物/學習/朋友社交/約會/日常採買/其他 選一",
+  "note": "外幣時填原幣金額如 USD 10.00，台幣時為空字串"
+}
+
+分類參考：
+- 餐飲：餐廳、咖啡、飲料、foodpanda、Uber Eats
+- 交通：優步、Uber、捷運、停車、加油
+- 治裝購物：服飾、鞋、包
+- 學習：書、課程、Anthropic、Claude、訂閱、軟體工具
+- 日常採買：蝦皮、全聯、超商、藥妝、LINE Pay
+- 其他：無法判斷時
+
+注意：
+- 民國年轉西元年：民國115年=2026年
+- 日期格式如 1150331 表示民國115年03月31日，轉為 2026-03-31
+- 台幣金額取整數`
+
+async function parseBankNotification(text: string): Promise<ParsedExpense | null> {
+  const apiKey = env('ANTHROPIC_API_KEY')
+  if (!apiKey) return null
+
+  try {
+    const client = new Anthropic({ apiKey })
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 256,
+      system: BANK_PARSE_PROMPT,
+      messages: [{ role: 'user', content: text }],
+    })
+
+    const textBlock = response.content.find(
+      (b): b is Anthropic.TextBlock => b.type === 'text'
+    )
+    if (!textBlock) return null
+
+    // Extract JSON from response (handle markdown code blocks)
+    let jsonStr = textBlock.text.trim()
+    const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/)
+    if (jsonMatch) jsonStr = jsonMatch[1].trim()
+
+    const parsed = JSON.parse(jsonStr) as ParsedExpense
+    if (!parsed.date || !parsed.title || typeof parsed.amount !== 'number') return null
+    return parsed
+  } catch (err) {
+    console.error('[parseBankNotification] Error:', err)
+    return null
+  }
+}
+
 // --- Direct command handlers (no AI) ---
 async function handleDirectCommand(chatId: number, text: string): Promise<string | null> {
   const trimmed = text.trim()
@@ -174,7 +238,33 @@ async function handleDirectCommand(chatId: number, text: string): Promise<string
     return '❓ 未知指令，輸入 /help 查看可用指令'
   }
 
-  // --- Credit card SMS parsing ---
+  // --- __BANK__ prefix: smart bank notification parsing via Claude ---
+  if (trimmed.startsWith('__BANK__')) {
+    const bankText = trimmed.slice('__BANK__'.length).trim()
+    if (!bankText) return '⚠️ 通知內容為空'
+
+    const parsed = await parseBankNotification(bankText)
+    if (!parsed) return '⚠️ 解析失敗，請手動記帳'
+
+    // Duplicate check: same title + amount + date within 5 minutes
+    const isDup = await findRecentDuplicateExpense(parsed.date, parsed.title, parsed.amount)
+    if (isDup) return '⚠️ 疑似重複通知，已略過'
+
+    const result = await addExpense(parsed.date, parsed.title, parsed.amount, parsed.category, parsed.note)
+    if (result.startsWith('寫入失敗')) return `❌ ${result}`
+
+    const lines = [
+      '✅ 已記帳',
+      `📅 ${parsed.date}`,
+      `🏪 ${parsed.title}`,
+      `💰 NT$ ${parsed.amount.toLocaleString()}`,
+      `🏷️ ${parsed.category}`,
+    ]
+    if (parsed.note) lines.push(`📎 ${parsed.note}`)
+    return lines.join('\n')
+  }
+
+  // --- Credit card SMS parsing (legacy, without __BANK__ prefix) ---
   const cardMatch = trimmed.match(/您於(\d{1,2})\/(\d{1,2}).*?刷([\d,]+)元/)
   if (cardMatch) {
     const year = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' }).slice(0, 4)
@@ -187,7 +277,7 @@ async function handleDirectCommand(chatId: number, text: string): Promise<string
     return `幫你記了 ${parseInt(month)}/${parseInt(day)} 刷卡 ${amount.toLocaleString()} 元，分類先設為其他，要改再告訴我`
   }
 
-  // --- Apple Pay notification parsing ---
+  // --- Apple Pay notification parsing (legacy) ---
   const applePayMatch = trimmed.match(/永豐銀行\n(.+)\n\$([\d,.]+)/)
   if (applePayMatch) {
     const merchant = applePayMatch[1].trim()
