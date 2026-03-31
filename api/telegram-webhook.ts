@@ -816,6 +816,14 @@ async function executeTool(name: string, input: Record<string, string>): Promise
       const today = getTodayTaipei()
       const endDate = addDaysToDate(today, 6)
       const tasks = await fetchTasksRange(today, endDate)
+
+      // Also fetch overdue incomplete tasks (past dates)
+      const overdueRes = await fetch(
+        supabaseUrl(`tasks?date=lt.${today}&completed=eq.false&order=date,created_at`),
+        { headers: supabaseHeaders() },
+      )
+      const overdueTasks: Task[] = overdueRes.ok ? await overdueRes.json() : []
+
       const byDate: Record<string, Task[]> = {}
       for (let i = 0; i < 7; i++) {
         const d = addDaysToDate(today, i)
@@ -824,14 +832,26 @@ async function executeTool(name: string, input: Record<string, string>): Promise
       for (const t of tasks) {
         if (byDate[t.date]) byDate[t.date].push(t)
       }
-      const lines = Object.entries(byDate).map(([date, tasks]) => {
+
+      const parts: string[] = []
+
+      // Show overdue tasks first
+      if (overdueTasks.length > 0) {
+        const overdueLines = overdueTasks.map(t => `  - [ ] ${t.title}（原 ${t.date}）`)
+        parts.push(`⚠️ 過期未完成（${overdueTasks.length} 筆）：\n${overdueLines.join('\n')}`)
+        parts.push('')
+      }
+
+      const weekLines = Object.entries(byDate).map(([date, dateTasks]) => {
         const dayOfWeek = new Date(date + 'T00:00:00+08:00')
           .toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei', weekday: 'short' })
-        const incomplete = tasks.filter(t => !t.completed).length
-        const taskNames = tasks.map(t => `  - [${t.completed ? '✓' : ' '}] ${t.title}`).join('\n')
-        return `${date}（${dayOfWeek}）：${tasks.length} 筆任務，${incomplete} 筆未完成${taskNames ? '\n' + taskNames : ''}`
+        const incomplete = dateTasks.filter(t => !t.completed).length
+        const taskNames = dateTasks.map(t => `  - [${t.completed ? '✓' : ' '}] ${t.title}`).join('\n')
+        return `${date}（${dayOfWeek}）：${dateTasks.length} 筆任務，${incomplete} 筆未完成${taskNames ? '\n' + taskNames : ''}`
       })
-      return `未來 7 天任務概覽：\n${lines.join('\n')}`
+
+      parts.push(`未來 7 天任務概覽：\n${weekLines.join('\n')}`)
+      return parts.join('\n')
     }
     case 'add_task': {
       console.log('[executeTool] add_task called:', input.date, input.title)
@@ -937,14 +957,22 @@ async function executeTool(name: string, input: Record<string, string>): Promise
         }
         return `已將 ${input.date} 的 ${count} 筆任務全部標記完成`
       }
-      // Find by title match
-      const res = await fetch(
+      // Find by title match — first try specified date, then search all dates
+      let found: Task[] = []
+      const res1 = await fetch(
         supabaseUrl(`tasks?date=eq.${input.date}&title=ilike.*${encodeURIComponent(input.task_title)}*&completed=eq.false&limit=1`),
         { headers: supabaseHeaders() },
       )
-      if (!res.ok) return '查詢失敗'
-      const found = await res.json() as Task[]
-      if (found.length === 0) return `找不到「${input.task_title}」這個未完成任務（${input.date}）`
+      if (res1.ok) found = await res1.json() as Task[]
+      // Fallback: search all dates if not found on specified date
+      if (found.length === 0) {
+        const res2 = await fetch(
+          supabaseUrl(`tasks?title=ilike.*${encodeURIComponent(input.task_title)}*&completed=eq.false&order=date.desc&limit=1`),
+          { headers: supabaseHeaders() },
+        )
+        if (res2.ok) found = await res2.json() as Task[]
+      }
+      if (found.length === 0) return `找不到「${input.task_title}」這個未完成任務`
       const ok = await updateTask(found[0].id, { completed: true })
       if (!ok) return '標記失敗'
       return `已把「${found[0].title}」標記完成`
