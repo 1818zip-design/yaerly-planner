@@ -5,7 +5,7 @@ const navItems = [
   { path: '/goals', label: '目標', icon: '◎' },
   { path: '/tasks', label: '任務', icon: '✓' },
   { path: '/habits', label: '習慣', icon: '◆' },
-  { path: '/mood', label: '日記', icon: '✎' },
+  { path: '/mood', label: '心情', icon: '✎' },
   { path: '/expenses', label: '記帳', icon: '¥' },
   { path: '/summary', label: '總覽', icon: '▦' },
 ];

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase, formatDateTW } from '../lib/supabase'
-import type { Task, HabitDefinition, HabitLog, Expense, Mood, Journal } from '../types'
+import type { Task, HabitDefinition, HabitLog, Expense, Mood } from '../types'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 const DAYS_ZH = ['日', '一', '二', '三', '四', '五', '六']
@@ -27,7 +27,6 @@ export default function Summary() {
   const [habitLogs, setHabitLogs] = useState<HabitLog[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [moods, setMoods] = useState<Mood[]>([])
-  const [journals, setJournals] = useState<Journal[]>([])
   const [loading, setLoading] = useState(true)
 
   const { start, end, year, month, lastDay } = getMonthRange(currentMonth)
@@ -40,20 +39,18 @@ export default function Summary() {
 
   async function fetchMonthData() {
     setLoading(true)
-    const [t, d, l, e, m, j] = await Promise.all([
+    const [t, d, l, e, m] = await Promise.all([
       supabase.from('tasks').select('*').gte('date', start).lte('date', end),
       supabase.from('habit_definitions').select('*').order('created_at'),
       supabase.from('habit_logs').select('*').gte('date', start).lte('date', end),
       supabase.from('expenses').select('*').gte('date', start).lte('date', end),
       supabase.from('mood').select('*').gte('date', start).lte('date', end),
-      supabase.from('journal').select('*').gte('date', start).lte('date', end),
     ])
     if (t.data) setTasks(t.data)
     if (d.data) setHabitDefs(d.data)
     if (l.data) setHabitLogs(l.data)
     if (e.data) setExpenses(e.data)
     if (m.data) setMoods(m.data)
-    if (j.data) setJournals(j.data)
     setLoading(false)
   }
 
@@ -69,7 +66,6 @@ export default function Summary() {
   function dayMood(date: string) { return moods.find(m => m.date === date) }
   function dayExpenses(date: string) { return expenses.filter(e => e.date === date) }
   function dayHabitLogs(date: string) { return habitLogs.filter(l => l.date === date && l.completed) }
-  function dayJournal(date: string) { return journals.find(j => j.date === date) }
 
   // Month summary stats
   const totalTasks = tasks.length
@@ -90,7 +86,6 @@ export default function Summary() {
   const selMood = sel ? dayMood(sel) : null
   const selExpenses = sel ? dayExpenses(sel) : []
   const selHabits = sel ? dayHabitLogs(sel) : []
-  const selJournal = sel ? dayJournal(sel) : null
 
   const card: React.CSSProperties = { backgroundColor: '#FFFFFF', borderRadius: '14px', padding: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
 
@@ -197,16 +192,6 @@ export default function Summary() {
                 </div>
               )}
 
-              {/* Journal */}
-              {selJournal && (
-                <div style={card}>
-                  <p style={{ fontSize: '11px', color: '#AEAEB2', margin: '0 0 8px', fontWeight: '500' }}>日記</p>
-                  <p style={{ fontSize: '13px', color: '#1C1C1E', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                    {selJournal.content}
-                  </p>
-                </div>
-              )}
-
               {/* Expenses */}
               {selExpenses.length > 0 && (
                 <div style={card}>
@@ -259,7 +244,7 @@ export default function Summary() {
               )}
 
               {/* Empty state */}
-              {selTasks.length === 0 && !selJournal && selExpenses.length === 0 && selHabits.length === 0 && !selMood && (
+              {selTasks.length === 0 && selExpenses.length === 0 && selHabits.length === 0 && !selMood && (
                 <div style={{ textAlign: 'center', color: '#AEAEB2', fontSize: '13px', padding: '20px 0' }}>
                   這天沒有任何記錄
                 </div>

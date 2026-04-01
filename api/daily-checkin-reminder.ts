@@ -2,7 +2,7 @@
  * Daily Check-in Reminder
  *
  * Runs at 21:00 Taipei time (UTC 13:00).
- * Checks what's missing today (expenses, habits, mood, journal)
+ * Checks what's missing today (expenses, habits, mood)
  * and sends a Telegram reminder.
  */
 
@@ -45,25 +45,22 @@ async function main() {
   console.log(`[daily-checkin] Checking for ${today}`)
 
   const h = supabaseHeaders()
-  const [expRes, habitRes, habitDefRes, moodRes, journalRes] = await Promise.all([
+  const [expRes, habitRes, habitDefRes, moodRes] = await Promise.all([
     fetch(supabaseUrl(`expenses?date=eq.${today}&limit=1`), { headers: h }),
     fetch(supabaseUrl(`habit_logs?date=eq.${today}&limit=1`), { headers: h }),
     fetch(supabaseUrl(`habit_definitions?limit=1`), { headers: h }),
     fetch(supabaseUrl(`mood?date=eq.${today}&limit=1`), { headers: h }),
-    fetch(supabaseUrl(`journal?date=eq.${today}&limit=1`), { headers: h }),
   ])
 
   const expenses = expRes.ok ? await expRes.json() as unknown[] : []
   const habits = habitRes.ok ? await habitRes.json() as unknown[] : []
   const habitDefs = habitDefRes.ok ? await habitDefRes.json() as unknown[] : []
   const moods = moodRes.ok ? await moodRes.json() as unknown[] : []
-  const journals = journalRes.ok ? await journalRes.json() as unknown[] : []
 
   const missing: string[] = []
   if (expenses.length === 0) missing.push('💰 記帳')
   if (habitDefs.length > 0 && habits.length === 0) missing.push('📅 習慣打卡')
   if (moods.length === 0) missing.push('😊 心情記錄')
-  if (journals.length === 0) missing.push('📝 日記')
 
   if (missing.length === 0) {
     console.log('[daily-checkin] All done, no reminder needed')

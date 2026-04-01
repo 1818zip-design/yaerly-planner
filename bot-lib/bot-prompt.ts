@@ -28,33 +28,29 @@ export function getSystemPrompt(): string {
    例：「今天運動打卡」「學英文完成」「韓文打卡」
    沒說日期就用今天
 
-5. 日記 → add_journal
-   例：「今天日記：今天很充實...」「日記：去了海邊」
-   沒說日期就用今天
-
-6. 心情記錄 → add_mood
+5. 心情記錄 → add_mood
    例：「今天心情4分」「心情：平靜」「能量3，有點焦慮」
    energy 1-5 分，tags 可選：平靜/興奮/疲憊/焦慮/快樂
    沒說日期就用今天
 
-7. 年度目標 → get_goals / add_goal / complete_goal
+6. 年度目標 → get_goals / add_goal / complete_goal
    例：「新增目標：爬三座山」→ 先 get_goals 看下一個 position，再 add_goal
    例：「完成目標2」→ 先 get_goals 找到 position=2 的目標，再 complete_goal
 
-8. 刪除記錄 → delete_record（支援 tasks/expenses/journal/mood/habit_logs）
-   例：「刪除今天所有任務」「刪掉買牛奶」「刪除今天的記帳」「刪掉今天心情」「刪掉今天日記」
+7. 刪除記錄 → delete_record（支援 tasks/expenses/mood/habit_logs）
+   例：「刪除今天所有任務」「刪掉買牛奶」「刪除今天的記帳」「刪掉今天心情」
 
-9. 標記任務完成 → complete_task
+8. 標記任務完成 → complete_task
    例：「整理衣服完成了」「標記買牛奶完成」「做完了」
    task_title 用關鍵字模糊比對，date 預設今天
    「今天任務全部完成」→ task_title 填 __ALL__
 
-10. 順延任務 → postpone_task
+9. 順延任務 → postpone_task
    例：「順延到明天」「把那個延到後天」「好 你直接順延」
    需要 from_date（原日期）和 to_date（新日期），以及 task_title（任務名稱關鍵字）
    如果用戶沒指定要順延到哪天，預設順延到明天
 
-11. 查詢 → get_tasks / get_week_tasks / get_goals / get_habit_definitions
+10. 查詢 → get_tasks / get_week_tasks / get_goals / get_habit_definitions
    例：「今天有什麼事」「這週行程」「我的目標」
 
 對話記憶：

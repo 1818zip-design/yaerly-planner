@@ -4,7 +4,7 @@ import { createCalendarEvent } from './google-calendar.js'
 import {
   Task, fetchTasksByDate, fetchTasksRange, addTaskToDate, updateTask,
   deleteByDateAndTable, addExpense, fetchHabitDefinitions, addHabitLog,
-  upsertJournal, upsertMood, fetchGoals, addGoal, updateGoalCompleted,
+  upsertMood, fetchGoals, addGoal, updateGoalCompleted,
 } from './supabase-ops.js'
 
 export const CLAUDE_TOOLS: Anthropic.Tool[] = [
@@ -83,18 +83,6 @@ export const CLAUDE_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
-    name: 'add_journal',
-    description: '寫日記。寫入或更新當天的日記內容。',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        date: { type: 'string', description: '日期，格式 YYYY-MM-DD' },
-        content: { type: 'string', description: '日記內容' },
-      },
-      required: ['date', 'content'],
-    },
-  },
-  {
     name: 'add_mood',
     description: '記錄心情。energy 1-5 分，tags 可選：平靜/興奮/疲憊/焦慮/快樂。',
     input_schema: {
@@ -140,7 +128,7 @@ export const CLAUDE_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: 'delete_record',
-    description: '刪除記錄。支援 tasks/expenses/journal/mood/habit_logs。',
+    description: '刪除記錄。支援 tasks/expenses/mood/habit_logs。',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -233,8 +221,6 @@ export async function executeTool(name: string, input: Record<string, string>): 
     }
     case 'add_habit_log':
       return addHabitLog(input.date, input.habit_id, input.habit_name)
-    case 'add_journal':
-      return upsertJournal(input.date, input.content)
     case 'add_mood': {
       const ti = input as Record<string, unknown>
       return upsertMood(input.date, Number(ti.energy), Array.isArray(ti.tags) ? ti.tags as string[] : [], input.note || '')
@@ -254,11 +240,11 @@ export async function executeTool(name: string, input: Record<string, string>): 
     }
     case 'delete_record': {
       const table = input.table
-      const allowed = ['tasks', 'expenses', 'journal', 'mood', 'habit_logs']
+      const allowed = ['tasks', 'expenses', 'mood', 'habit_logs']
       if (!allowed.includes(table)) return `不支援刪除 ${table} 表`
       const titleField = table === 'tasks' || table === 'expenses' ? 'title' : undefined
       const count = await deleteByDateAndTable(table, input.date, titleField, input.title_match)
-      const label: Record<string, string> = { tasks: '任務', expenses: '記帳', journal: '日記', mood: '心情', habit_logs: '打卡' }
+      const label: Record<string, string> = { tasks: '任務', expenses: '記帳', mood: '心情', habit_logs: '打卡' }
       if (count === 0) return `${input.date} 沒有${label[table] || '記錄'}可刪除`
       return `已刪除 ${count} 筆${label[table] || '記錄'}`
     }

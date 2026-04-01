@@ -1,8 +1,8 @@
 import { supabaseUrl, supabaseHeaders, getTodayTaipei } from './helpers.js'
-import { addExpense, fetchHabitDefinitions, addHabitLog, upsertMood, upsertJournal } from './supabase-ops.js'
+import { addExpense, fetchHabitDefinitions, addHabitLog, upsertMood } from './supabase-ops.js'
 
 export interface CheckinState {
-  step: 'expense' | 'habit' | 'mood_energy' | 'mood_tags' | 'journal' | 'done'
+  step: 'expense' | 'habit' | 'mood_energy' | 'mood_tags' | 'done'
   missing: string[]  // which items are missing
   moodEnergy?: number
   date: string
@@ -56,24 +56,21 @@ export async function checkMissing(date: string): Promise<string[]> {
   const missing: string[] = []
   const h = supabaseHeaders()
 
-  const [expRes, habitRes, habitDefRes, moodRes, journalRes] = await Promise.all([
+  const [expRes, habitRes, habitDefRes, moodRes] = await Promise.all([
     fetch(supabaseUrl(`expenses?date=eq.${date}&limit=1`), { headers: h }),
     fetch(supabaseUrl(`habit_logs?date=eq.${date}&limit=1`), { headers: h }),
     fetch(supabaseUrl(`habit_definitions?limit=1`), { headers: h }),
     fetch(supabaseUrl(`mood?date=eq.${date}&limit=1`), { headers: h }),
-    fetch(supabaseUrl(`journal?date=eq.${date}&limit=1`), { headers: h }),
   ])
 
   const expenses = expRes.ok ? await expRes.json() as unknown[] : []
   const habits = habitRes.ok ? await habitRes.json() as unknown[] : []
   const habitDefs = habitDefRes.ok ? await habitDefRes.json() as unknown[] : []
   const moods = moodRes.ok ? await moodRes.json() as unknown[] : []
-  const journals = journalRes.ok ? await journalRes.json() as unknown[] : []
 
   if (expenses.length === 0) missing.push('expense')
   if (habitDefs.length > 0 && habits.length === 0) missing.push('habit')
   if (moods.length === 0) missing.push('mood_energy')
-  if (journals.length === 0) missing.push('journal')
 
   return missing
 }
@@ -89,8 +86,6 @@ export function getStepPrompt(state: CheckinState): string {
       return '😊 今天能量幾分？(1-5)\n1=很低 2=偏低 3=普通 4=不錯 5=超好'
     case 'mood_tags':
       return '🏷️ 心情標籤？可選：平靜/興奮/疲憊/焦慮/快樂\n多個用逗號隔開，或「略過」'
-    case 'journal':
-      return '📝 今天想記什麼？隨便寫幾句\n\n回覆「略過」跳過'
     default:
       return ''
   }
@@ -160,13 +155,6 @@ export async function processStepReply(chatId: number, state: CheckinState, text
     case 'mood_tags': {
       const tags = isSkip ? [] : trimmed.split(/[,，、]/).map(s => s.trim()).filter(Boolean)
       await upsertMood(state.date, state.moodEnergy || 3, tags, '')
-      return advanceState(chatId, state)
-    }
-
-    case 'journal': {
-      if (!isSkip) {
-        await upsertJournal(state.date, trimmed)
-      }
       return advanceState(chatId, state)
     }
 

@@ -129,16 +129,6 @@ async function testAddMood() {
   })
 }
 
-async function testAddJournal() {
-  await test('寫日記', '日記：今天是自動測試日_TEST', async (reply) => {
-    await new Promise(r => setTimeout(r, 500))
-    const journals = await supaQuery(`journal?date=eq.${today()}&order=created_at.desc&limit=1`) as { id: string; content: string }[]
-    if (journals.length === 0) return { pass: false, error: '日記未寫入 Supabase' }
-    cleanupIds.push({ table: 'journal', id: journals[0].id })
-    return { pass: journals[0].content.includes('自動測試') }
-  })
-}
-
 async function testCompleteTask() {
   const title = `_TEST_完成_${Date.now()}`
   // Insert directly to be deterministic
@@ -474,7 +464,6 @@ async function main() {
   await testCreditCardSMS()
   await testApplePay()
   await testAddMood()
-  await testAddJournal()
   await testCompleteTask()
   await testPostponeTask()
   await testDeleteTask()

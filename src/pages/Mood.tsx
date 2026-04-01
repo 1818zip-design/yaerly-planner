@@ -1,7 +1,7 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase, formatDateTW } from '../lib/supabase'
-import type { Journal, Mood as MoodType, MoodTag } from '../types'
-import { ChevronLeft, ChevronRight, Clock } from 'lucide-react'
+import type { Mood as MoodType, MoodTag } from '../types'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 function formatDate(d: Date) {
   return formatDateTW(d)
@@ -21,15 +21,6 @@ function displayDate(dateStr: string) {
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} (週${days[d.getDay()]})`
 }
 
-function formatTime(isoStr: string) {
-  const d = new Date(isoStr)
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-function pad(n: number) {
-  return String(n).padStart(2, '0')
-}
-
 const ENERGY_COLORS = ['', '#E88B8B', '#E8A87C', '#D4C06A', '#7BC47F', '#8B9EC7']
 const ENERGY_LABELS = ['', '很低', '偏低', '普通', '不錯', '超好']
 const MOOD_TAGS: MoodTag[] = ['平靜', '興奮', '疲憊', '焦慮', '快樂']
@@ -42,14 +33,8 @@ const TAG_COLORS: Record<MoodTag, string> = {
   快樂: '#7BC4A2',
 }
 
-export default function JournalMood() {
+export default function MoodPage() {
   const [currentDate, setCurrentDate] = useState(formatDate(new Date()))
-
-  const [content, setContent] = useState('')
-  const [journal, setJournal] = useState<Journal | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [lastSaved, setLastSaved] = useState<string | null>(null)
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [mood, setMood] = useState<MoodType | null>(null)
   const [energy, setEnergy] = useState(0)
@@ -57,35 +42,11 @@ export default function JournalMood() {
   const [moodNote, setMoodNote] = useState('')
   const moodSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const [pastJournals, setPastJournals] = useState<Journal[]>([])
-
   const today = formatDate(new Date())
 
   useEffect(() => {
-    fetchJournal()
     fetchMood()
   }, [currentDate])
-
-  useEffect(() => {
-    fetchPastJournals()
-  }, [])
-
-  async function fetchJournal() {
-    const { data } = await supabase
-      .from('journal')
-      .select('*')
-      .eq('date', currentDate)
-      .maybeSingle()
-    if (data) {
-      setJournal(data)
-      setContent(data.content)
-      setLastSaved(data.updated_at)
-    } else {
-      setJournal(null)
-      setContent('')
-      setLastSaved(null)
-    }
-  }
 
   async function fetchMood() {
     const { data } = await supabase
@@ -104,53 +65,6 @@ export default function JournalMood() {
       setMoodTags([])
       setMoodNote('')
     }
-  }
-
-  async function fetchPastJournals() {
-    const { data } = await supabase
-      .from('journal')
-      .select('*')
-      .order('date', { ascending: false })
-      .limit(30)
-    if (data) setPastJournals(data)
-  }
-
-  const saveJournal = useCallback(async (text: string, date: string) => {
-    setSaving(true)
-    const now = new Date().toISOString()
-    if (journal) {
-      const { data } = await supabase
-        .from('journal')
-        .update({ content: text, updated_at: now })
-        .eq('date', date)
-        .select()
-        .single()
-      if (data) {
-        setJournal(data)
-        setLastSaved(data.updated_at)
-        setPastJournals(prev => prev.map(j => (j.date === date ? data : j)))
-      }
-    } else {
-      const { data } = await supabase
-        .from('journal')
-        .insert({ date, content: text, updated_at: now })
-        .select()
-        .single()
-      if (data) {
-        setJournal(data)
-        setLastSaved(data.updated_at)
-        setPastJournals(prev => [data, ...prev.filter(j => j.date !== date)])
-      }
-    }
-    setSaving(false)
-  }, [journal])
-
-  function handleContentChange(text: string) {
-    setContent(text)
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-    saveTimeoutRef.current = setTimeout(() => {
-      saveJournal(text, currentDate)
-    }, 1200)
   }
 
   async function saveMood(newEnergy: number, newTags: MoodTag[], newNote: string) {
@@ -192,10 +106,6 @@ export default function JournalMood() {
     saveMood(energy || 3, moodTags, text)
   }
 
-  const charCount = content.length
-
-  const filteredPastJournals = pastJournals.filter(j => j.date !== currentDate).slice(0, 5)
-
   return (
     <div style={{ padding: '0', maxWidth: '480px', margin: '0 auto', display: 'flex', flexDirection: 'column', backgroundColor: '#F2F2F7', minHeight: '100%' }}>
       {/* Header */}
@@ -218,22 +128,6 @@ export default function JournalMood() {
           <div style={{ fontSize: '15px', fontWeight: '600', color: '#1C1C1E' }}>
             {displayDate(currentDate)}
           </div>
-          {lastSaved && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '4px',
-                fontSize: '11px',
-                color: '#AEAEB2',
-                marginTop: '2px',
-              }}
-            >
-              <Clock size={10} />
-              {saving ? '儲存中...' : `已儲存 ${formatTime(lastSaved)}`}
-            </div>
-          )}
         </div>
         <button
           onClick={() => setCurrentDate(formatDate(addDays(new Date(currentDate), 1)))}
@@ -248,47 +142,6 @@ export default function JournalMood() {
         >
           <ChevronRight size={20} />
         </button>
-      </div>
-
-      {/* Journal section */}
-      <div style={{ padding: '0 16px 16px' }}>
-        <p style={{ fontSize: '13px', color: '#6C6C70', margin: '0 0 10px', fontWeight: '600' }}>
-          日記
-        </p>
-        <div
-          style={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: '14px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-            padding: '4px',
-          }}
-        >
-          <textarea
-            value={content}
-            onChange={e => handleContentChange(e.target.value)}
-            placeholder={currentDate === today
-              ? '今天有什麼想記錄的？\n\n可以寫下任何事情——發生了什麼、感受如何、想到什麼...'
-              : '這天的日記...'}
-            style={{
-              width: '100%',
-              minHeight: '200px',
-              padding: '12px',
-              backgroundColor: 'rgba(118,118,128,0.12)',
-              border: 'none',
-              borderRadius: '14px',
-              color: '#1C1C1E',
-              fontSize: '15px',
-              lineHeight: '1.7',
-              outline: 'none',
-              resize: 'vertical',
-              fontFamily: 'inherit',
-              boxSizing: 'border-box',
-            }}
-          />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
-          <span style={{ fontSize: '11px', color: '#AEAEB2' }}>{charCount} 字</span>
-        </div>
       </div>
 
       {/* Mood section */}
@@ -402,56 +255,6 @@ export default function JournalMood() {
           />
         </div>
       </div>
-
-      {/* Past journals */}
-      {filteredPastJournals.length > 0 && (
-        <div style={{ padding: '0 16px 16px' }}>
-          <p style={{ fontSize: '13px', color: '#6C6C70', margin: '0 0 10px', fontWeight: '600' }}>過往記錄</p>
-          <div
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: '14px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-              overflow: 'hidden',
-            }}
-          >
-            {filteredPastJournals.map((j, idx) => (
-              <button
-                key={j.id}
-                onClick={() => setCurrentDate(j.date)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  backgroundColor: '#FFFFFF',
-                  border: 'none',
-                  borderBottom: idx < filteredPastJournals.length - 1 ? '0.5px solid rgba(60,60,67,0.12)' : 'none',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  width: '100%',
-                  transition: 'background-color 0.15s ease',
-                }}
-              >
-                <span style={{ fontSize: '12px', color: '#AEAEB2', flexShrink: 0, fontWeight: '500' }}>{j.date}</span>
-                <span
-                  style={{
-                    fontSize: '13px',
-                    color: '#6C6C70',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    flex: 1,
-                  }}
-                >
-                  {j.content.slice(0, 60) || '（空白）'}
-                </span>
-                <ChevronRight size={14} style={{ color: '#AEAEB2', flexShrink: 0 }} />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -125,26 +125,6 @@ export async function addHabitLog(date: string, habitId: string, habitName: stri
   return `「${habitName}」打卡完成（${date}）`
 }
 
-// --- Journal ---
-export async function upsertJournal(date: string, content: string): Promise<string> {
-  const now = new Date().toISOString()
-  const existing = await fetch(supabaseUrl(`journal?date=eq.${date}`), { headers: supabaseHeaders() })
-  if (existing.ok) {
-    const rows = await existing.json()
-    if (Array.isArray(rows) && rows.length > 0) {
-      await fetch(supabaseUrl(`journal?id=eq.${rows[0].id}`), {
-        method: 'PATCH', headers: supabaseHeaders(), body: JSON.stringify({ content, updated_at: now }),
-      })
-      return `已更新 ${date} 的日記`
-    }
-  }
-  const res = await fetch(supabaseUrl('journal'), {
-    method: 'POST', headers: supabaseHeaders(), body: JSON.stringify({ date, content, updated_at: now }),
-  })
-  if (!res.ok) { console.error('[upsertJournal] Failed:', res.status, await res.text()); return '日記寫入失敗' }
-  return `已寫入 ${date} 的日記`
-}
-
 // --- Mood ---
 export async function upsertMood(date: string, energy: number, tags: string[], note: string): Promise<string> {
   const existing = await fetch(supabaseUrl(`mood?date=eq.${date}`), { headers: supabaseHeaders() })

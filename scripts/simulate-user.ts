@@ -46,21 +46,19 @@ interface Persona {
   description: string
   completionRate: number
   postponeRate: number
-  journalRate: number
   habitRate: number
   moodRange: [number, number]
   moodTags: string[]
   tasks: string[]
   expenses: { msg: string; format: 'natural' | 'applepay' | 'sms'; amount: number; category: string }[]
   schedules: { title: string; time: string }[]
-  journals: string[]
 }
 
 const PERSONAS: Record<string, Persona> = {
   拖延症: {
     name: '小拖（P人拖延症）',
     description: '什麼都想做但都拖，常順延，偶爾爆發完成',
-    completionRate: 0.25, postponeRate: 0.6, journalRate: 0.4, habitRate: 0.3,
+    completionRate: 0.25, postponeRate: 0.6, habitRate: 0.3,
     moodRange: [2, 4], moodTags: ['疲憊', '焦慮', '平靜'],
     tasks: ['整理房間', '洗衣服', '回覆郵件', '寫報告', '買日用品', '運動', '看書', '繳帳單', '預約牙醫', '寄包裹'],
     expenses: [
@@ -70,12 +68,11 @@ const PERSONAS: Record<string, Persona> = {
       { msg: '深夜零食 120', format: 'natural', amount: 120, category: '日常採買' },
     ],
     schedules: [],
-    journals: ['今天又拖延了', '終於做了一件事', '好累什麼都不想做', '突然有動力做了好幾件事'],
   },
   高管: {
     name: '陳總（公司高管）',
     description: '行程滿，效率高，花費大，多用 Apple Pay',
-    completionRate: 0.8, postponeRate: 0.1, journalRate: 0.2, habitRate: 0.5,
+    completionRate: 0.8, postponeRate: 0.1, habitRate: 0.5,
     moodRange: [3, 5], moodTags: ['平靜', '興奮', '焦慮'],
     tasks: ['看Q2報告', '準備董事會簡報', '面試候選人', '回覆合作提案', '簽核預算', '審核行銷方案'],
     expenses: [
@@ -89,12 +86,11 @@ const PERSONAS: Record<string, Persona> = {
       { title: '跟客戶開會', time: '14:00' },
       { title: '面試', time: '16:00' },
     ],
-    journals: ['今天會議有結論效率不錯', '市場變化快要加速決策'],
   },
   學生: {
     name: '小明（大學生）',
     description: '課業壓力大，花費省，常熬夜',
-    completionRate: 0.55, postponeRate: 0.35, journalRate: 0.5, habitRate: 0.4,
+    completionRate: 0.55, postponeRate: 0.35, habitRate: 0.4,
     moodRange: [2, 5], moodTags: ['疲憊', '焦慮', '快樂', '興奮'],
     tasks: ['寫作業', '複習考試', '交報告', '做分組專題', '洗衣服', '找教授討論', '申請實習', '練英文'],
     expenses: [
@@ -107,12 +103,11 @@ const PERSONAS: Record<string, Persona> = {
       { title: '上課', time: '09:00' },
       { title: '社團開會', time: '18:00' },
     ],
-    journals: ['上課好累但學到東西', '期末壓力好大', '跟朋友出去玩超開心', '報告交了解脫'],
   },
   自由工作者: {
     name: '阿志（自由工作者）',
     description: '時間自由但自律不穩，在家工作',
-    completionRate: 0.5, postponeRate: 0.4, journalRate: 0.6, habitRate: 0.5,
+    completionRate: 0.5, postponeRate: 0.4, habitRate: 0.5,
     moodRange: [1, 5], moodTags: ['平靜', '焦慮', '快樂', '疲憊'],
     tasks: ['寫提案', '回客戶信', '修改設計稿', '發invoice', '更新作品集', '找新案子', '學新工具', '記帳對帳'],
     expenses: [
@@ -123,7 +118,6 @@ const PERSONAS: Record<string, Persona> = {
     schedules: [
       { title: '跟客戶視訊', time: '10:00' },
     ],
-    journals: ['效率很高一口氣做完兩個案子', '沒案子有點焦慮', '收到新客戶的信很有趣'],
   },
 }
 
@@ -256,17 +250,6 @@ async function simulateDay(p: Persona, dayNum: number, date: string, prevTasks: 
     })
   }
 
-  // === Journal ===
-  if (chance(p.journalRate)) {
-    const entry = pick(p.journals)
-    await act(dayNum, date, '日記', `日記：${entry}`, async () => {
-      await new Promise(r => setTimeout(r, 300))
-      const rows = await supaQuery(`journal?date=eq.${date}&limit=1`) as { content: string }[]
-      if (rows.length === 0) return { pass: false, detail: 'journal NOT in Supabase' }
-      return { pass: rows[0].content.length > 0, detail: 'journal written' }
-    })
-  }
-
   // === Habit check-in ===
   if (chance(p.habitRate)) {
     await act(dayNum, date, '習慣打卡', '運動打卡', async () => {
@@ -288,7 +271,6 @@ async function cleanup() {
   // Delete tasks created during simulation (match by simulated dates 2026-03-25 to 2026-04-10)
   await supaDelete(`tasks?date=gte.2026-03-25&date=lte.2026-04-10&created_at=gte.${since}`)
   await supaDelete(`expenses?created_at=gte.${since}`)
-  await supaDelete(`journal?date=gte.2026-03-25&date=lte.2026-04-10&created_at=gte.${since}`)
   await supaDelete(`mood?date=gte.2026-03-25&date=lte.2026-04-10&created_at=gte.${since}`)
   await supaDelete(`habit_logs?created_at=gte.${since}`)
   await supaDelete(`bot_memory?chat_id=eq.${CHAT_ID}`)

@@ -1,11 +1,11 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Goals from './pages/Goals'
 import Tasks from './pages/Tasks'
 import Habits from './pages/Habits'
 import Expenses from './pages/Expenses'
-import JournalMood from './pages/Mood'
+import MoodPage from './pages/Mood'
 import Summary from './pages/Summary'
 
 function App() {
@@ -17,8 +17,7 @@ function App() {
           <Route path="/goals" element={<Goals />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/habits" element={<Habits />} />
-          <Route path="/mood" element={<JournalMood />} />
-          <Route path="/journal" element={<Navigate to="/mood" replace />} />
+          <Route path="/mood" element={<MoodPage />} />
           <Route path="/expenses" element={<Expenses />} />
           <Route path="/summary" element={<Summary />} />
         </Route>
