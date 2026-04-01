@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { supabaseUrl, supabaseHeaders, getTodayTaipei, addDaysToDate } from './helpers.js'
-import { createCalendarEvent } from './google-calendar.js'
+import { createCalendarEvent, listCalendarEvents, deleteCalendarEvent } from './google-calendar.js'
 import {
   Task, fetchTasksByDate, fetchTasksRange, addTaskToDate, updateTask,
   deleteByDateAndTable, addExpense, fetchHabitDefinitions, addHabitLog,
@@ -164,6 +164,29 @@ export const CLAUDE_TOOLS: Anthropic.Tool[] = [
       required: ['date', 'task_title'],
     },
   },
+  {
+    name: 'list_calendar_events',
+    description: '查詢 Google Calendar 指定日期的行程列表。用於查看行程或刪除前先列出。',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        date: { type: 'string', description: '日期，格式 YYYY-MM-DD' },
+      },
+      required: ['date'],
+    },
+  },
+  {
+    name: 'delete_calendar_event',
+    description: '刪除 Google Calendar 的行程。必須先用 list_calendar_events 列出行程讓用戶確認後才能刪除。',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        event_id: { type: 'string', description: 'Google Calendar event ID（從 list_calendar_events 取得）' },
+        event_title: { type: 'string', description: '行程名稱（用於回覆確認）' },
+      },
+      required: ['event_id', 'event_title'],
+    },
+  },
 ]
 
 export async function executeTool(name: string, input: Record<string, string>): Promise<string> {
@@ -282,6 +305,21 @@ export async function executeTool(name: string, input: Record<string, string>): 
       const ok = await updateTask(found[0].id, { completed: true })
       if (!ok) return '標記失敗'
       return `已把「${found[0].title}」標記完成`
+    }
+    case 'list_calendar_events': {
+      const events = await listCalendarEvents(input.date)
+      if (events.length === 0) return `${input.date} 沒有行程`
+      const lines = events.map((e, i) => {
+        const time = e.start.dateTime ? e.start.dateTime.slice(11, 16) : '全天'
+        const loc = e.location ? ` (${e.location})` : ''
+        return `${i + 1}. ${time} ${e.summary}${loc} [id:${e.id}]`
+      })
+      return `${input.date} 的行程（${events.length} 筆）：\n${lines.join('\n')}`
+    }
+    case 'delete_calendar_event': {
+      const result = await deleteCalendarEvent(input.event_id)
+      if (result !== 'ok') return result
+      return `已刪除行程「${input.event_title}」`
     }
     default:
       return `未知工具：${name}`

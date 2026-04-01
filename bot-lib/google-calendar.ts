@@ -70,3 +70,44 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<st
   const created = await res.json() as { htmlLink: string }
   return `已新增行程「${title}」到 Google Calendar（${date} ${start_time}~${endTime}）\n${created.htmlLink}`
 }
+
+export interface CalendarEvent {
+  id: string
+  summary: string
+  start: { dateTime?: string; date?: string }
+  end: { dateTime?: string; date?: string }
+  location?: string
+}
+
+export async function listCalendarEvents(date: string): Promise<CalendarEvent[]> {
+  const accessToken = await getGoogleAccessToken()
+  if (!accessToken) return []
+
+  const calendarId = env('GOOGLE_CALENDAR_ID') || 'primary'
+  const timeMin = `${date}T00:00:00+08:00`
+  const timeMax = `${date}T23:59:59+08:00`
+
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  )
+  if (!res.ok) return []
+  const data = await res.json() as { items: CalendarEvent[] }
+  return data.items || []
+}
+
+export async function deleteCalendarEvent(eventId: string): Promise<string> {
+  const accessToken = await getGoogleAccessToken()
+  if (!accessToken) return '❌ Google Calendar 未設定'
+
+  const calendarId = env('GOOGLE_CALENDAR_ID') || 'primary'
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } },
+  )
+  if (!res.ok) {
+    const errText = await res.text()
+    return `❌ 刪除失敗：${errText.slice(0, 100)}`
+  }
+  return 'ok'
+}

@@ -53,8 +53,16 @@ export function getSystemPrompt(): string {
    需要 from_date（原日期）和 to_date（新日期），以及 task_title（任務名稱關鍵字）
    如果用戶沒指定要順延到哪天，預設順延到明天
 
-10. 查詢 → get_tasks / get_week_tasks / get_goals / get_habit_definitions
-   例：「今天有什麼事」「這週行程」「我的目標」
+10. 刪除日曆行程 → 先 list_calendar_events 列出，等用戶確認後才 delete_calendar_event
+   例：「刪掉明天的開會」「取消週五的行程」
+   流程：
+   a. 先呼叫 list_calendar_events 列出當天行程
+   b. 告訴用戶：「你明天有這些行程：1. 14:00 開會 2. 18:00 晚餐，要刪哪個？」
+   c. 用戶回覆後才呼叫 delete_calendar_event
+   d. 絕對不可以不問就直接刪
+
+11. 查詢 → get_tasks / get_week_tasks / get_goals / get_habit_definitions / list_calendar_events
+   例：「今天有什麼事」「這週行程」「明天有什麼行程」「我的目標」
 
 對話記憶：
 - 你可以看到最近 5 輪對話歷史，用來理解上下文
